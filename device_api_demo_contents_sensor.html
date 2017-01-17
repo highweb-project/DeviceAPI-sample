@@ -1,0 +1,139 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<script type="text/javascript">
+function deviceproximityStart() {
+  window.addEventListener('deviceproximity', callback);
+}
+
+function deviceproximityStop() {
+  window.removeEventListener('deviceproximity', callback);
+}
+
+function callback(event) {
+	console.log("deviceproximity, callback, value : " + event.value);
+
+  var canvas = document.getElementById('myCanvas'),
+  ctx = canvas.getContext('2d');
+
+  if(event.value == 0) {
+    ctx.fillStyle = "red";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = "blue";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+}
+</script>
+<style>
+.console-log-div {
+  width: 95% !important;
+  background-color: #efefef;
+}
+#log {
+  margin: 10px 0px;
+  display: block;
+  white-space: pre;
+  font-family: monospace;
+}
+#log:before {
+  content: "log javascript:";
+  font-style: italic;
+  color: #555;
+}
+</style>
+
+<style>
+table {
+    width:100%;
+}
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 5px;
+    text-align: left;
+}
+table#t01 tr:nth-child(even) {
+    background-color: #eee;
+}
+table#t01 tr:nth-child(odd) {
+   background-color:#fff;
+}
+table#t01 th	{
+    background-color: black;
+    color: white;
+}
+/*http://stackoverflow.com/questions/5127937/how-to-center-canvas-in-html5*/
+canvas {
+    padding: 0;
+    margin: auto;
+    display: block;
+    width: 90%;
+    height: 100px;
+}
+</style>
+</head>
+<body>
+<h1 style="font-family: verdana; text-align: center">Sensor DeviceAPI</h1>
+<table id="t01">
+  <tr>
+    <th width="20%">API</th>
+    <th width="30%">Description</th>
+    <th width="50%">DEMO</th>
+  </tr>
+  <tr>
+    <td>window.addEventListener</td>
+    <td>근접센서 조회</td>
+    <td>
+      <button type="button" onclick="deviceproximityStart()" style="font-size: 15pt" >근접센서 조회 시작</button><br><br>
+      <button type="button" onclick="deviceproximityStop()" style="font-size: 15pt" >근접센서 조회 중지</button>
+    </td>
+  </tr>
+</table>
+<br>
+
+<canvas id="myCanvas" style="border:1px solid #000000;">
+Your browser does not support the HTML5 canvas tag.
+</canvas>
+<br>
+
+<script src="console-log-div.js"></script><br>
+
+<script>
+var canvas = document.getElementById('myCanvas'),
+ctx = canvas.getContext('2d');
+
+ctx.fillStyle = "red";
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+</script>
+
+<!-- <script>
+//http://stackoverflow.com/questions/4288253/html5-canvas-100-width-height-of-viewport
+var canvas = document.getElementById('myCanvas'),
+context = canvas.getContext('2d');
+
+// resize the canvas to fill browser window dynamically
+window.addEventListener('resize', resizeCanvas, false);
+
+function resizeCanvas() {
+        canvas.width = window.innerWidth - 50;
+        canvas.height = 100;
+
+        /**
+         * Your drawings need to be inside this function otherwise they will be reset when
+         * you resize the browser window and the canvas goes will be cleared.
+         */
+        drawStuff();
+}
+resizeCanvas();
+
+function drawStuff() {
+        // do your drawing stuff here
+}
+</script> -->
+</body>
+</html>

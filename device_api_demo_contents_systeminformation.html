@@ -1,0 +1,288 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+function checkDeviceSoundAPI() {
+  if (!navigator.devicesound || typeof(navigator.devicesound) === "undefined") {
+    return false;
+  }
+
+  return true;
+}
+
+function checkDeviceStorageAPI() {
+  if (!navigator.devicestorage || typeof(navigator.devicestorage) === "undefined") {
+    return false;
+  }
+
+  return true;
+}
+
+function checkDeviceCpuAPI() {
+  if (!navigator.devicecpu || typeof(navigator.devicecpu) === "undefined") {
+    return false;
+  }
+
+  return true;
+}
+
+function flushDeviceAPISupportMessasge() {
+  if(checkDeviceSoundAPI()) {
+    console.log("이 브라우저는 SystemInformation (devicesound) DeviceAPI를 지원합니다.");
+  } else {
+    console.error("이 브라우저는 SystemInformation (devicesound) DeviceAPI를 지원하지 않습니다.");
+  }
+  if(checkDeviceStorageAPI()) {
+    console.log("이 브라우저는 SystemInformation (devicestorage) DeviceAPI를 지원합니다.");
+  } else {
+    console.error("이 브라우저는 SystemInformation (devicestorage) DeviceAPI를 지원하지 않습니다.");
+  }
+  if(checkDeviceCpuAPI()) {
+    console.log("이 브라우저는 SystemInformation (devicecpu) DeviceAPI를 지원합니다.");
+  } else {
+    console.error("이 브라우저는 SystemInformation (devicecpu) DeviceAPI를 지원하지 않습니다.");
+  }
+}
+
+function deviceVolume() {
+  var deviceSound = navigator.devicesound;
+  var callback = function(event)
+	{
+		console.log("deviceSound.deviceVolume callback resultCode : " + event.resultCode);
+
+		var volume = event.volume;
+		console.log("mediaVolume : " + volume.MediaVolume);
+		console.log("NotificationVolume : " + volume.NotificationVolume);
+		console.log("AlarmVolume : " + volume.AlarmVolume);
+		console.log("BellVolume : " + volume.BellVolume);
+		console.log("CallVolume : " + volume.CallVolume);
+		console.log("SystemVolume : " + volume.SystemVolume);
+		console.log("DTMFVolume : " + volume.DTMFVolume);
+	}
+
+  var result = deviceSound.deviceVolume(callback);
+  console.log("deviceSound.deviceVolume result : " + result);
+}
+
+function outputDeviceType() {
+  var deviceSound = navigator.devicesound;
+  var callback = function(event)
+	{
+		console.log("devicesound.outputDeviceType callback resultCode : " + event.resultCode);
+		console.log("outputType : " + event.outputType);
+	}
+
+  var result = deviceSound.outputDeviceType(callback);
+  console.log("deviceSound.outputDeviceType result : " + result);
+}
+
+function getDeviceStorage() {
+  var deviceStorage = navigator.devicestorage;
+  var callback = function(event) {
+		console.log("deviceStorage.getDeviceStorage callback resultCode : " + event.resultCode + ", storageList.length : " + event.storageList.length);
+		var list = event.storageList;
+		if (list.length > 0) {
+			for(var i = 0; i < list.length; i++) {
+				var info = event.storageList[i];
+				console.log("storageList[" + i + "] type : " + info.type);
+				console.log("storageList[" + i + "] capacity : " + info.capacity);
+				console.log("storageList[" + i + "] availableCapacity : " + info.availableCapacity);
+				console.log("storageList[" + i + "] isRemovable : " + info.isRemovable);
+			}
+		}
+	}
+
+  var result = deviceStorage.getDeviceStorage(callback);
+  console.log("deviceStorage.getDeviceStorage result : " + result);
+}
+
+function load_chart() {
+  google.charts.load('current', {'packages':['corechart', 'gauge']});
+  google.charts.setOnLoadCallback(load);
+  console.log("load_chart, wait onLoadCallback...");
+}
+
+function getCurrentTimeMillis() {
+  var date = new Date();
+  var milliseconds = date.getTime();
+
+  return milliseconds;
+}
+
+var graphChartData =  [ ['Time', 'CPU Usage'] ];
+var lastCPUUsageData;
+var graphChart = null;
+var gaugeChart = null;
+
+function drawChart() {
+  // graph chart
+  {
+    var data = google.visualization.arrayToDataTable(graphChartData);
+    var options = {
+      title: 'CPU Usage',
+      curveType: 'function',
+      legend: { position: 'bottom' }
+    };
+
+    if(graphChart == null) {
+        graphChart = new google.visualization.LineChart(document.getElementById('curve_chart'));
+    }
+
+    // graphChart.clearChart();
+    graphChart.draw(data, options);
+  }
+  // gauge chart
+  {
+    var data = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['CPU', lastCPUUsageData],
+        ]);
+    var options = {
+        width: 500, height: 500,
+        redFrom: 90, redTo: 100,
+        yellowFrom:75, yellowTo: 90,
+        minorTicks: 5
+      };
+
+    if(gaugeChart == null) {
+      gaugeChart = new google.visualization.Gauge(document.getElementById('chart_div'));
+    }
+
+    //gaugeChart.clearChart();
+    gaugeChart.draw(data, options);
+  }
+}
+
+function load() {
+  var deviceCpu = navigator.devicecpu;
+  var lastDrawChartTime = getCurrentTimeMillis();
+
+  var callback = function(event) {
+    //console.log("deviceCpu.load callback resultCode : " + event.resultCode);
+    // console.log("CPU Load : " + event.load * 100 + "%");
+
+    var willDrawChart = false;
+    var deltaDrawChart = getCurrentTimeMillis() - lastDrawChartTime;
+    // console.log("deltaDrawChart : " + deltaDrawChart);
+    //if(deltaDrawChart > 1500) {
+    if(deltaDrawChart > 1000) {
+      willDrawChart = true;
+      lastDrawChartTime = getCurrentTimeMillis();
+    }
+
+    var now = new Date();
+    graphChartData.push([ now.getHours().toString() + now.getMinutes().toString() + now.getSeconds().toString(), event.load * 100 ]);
+
+    if(graphChartData.length > 10) {
+      // chartData.shift();
+      //http://stackoverflow.com/questions/2003815/how-to-remove-element-from-an-array-in-javascript
+      //http://stackoverflow.com/questions/20251173/unknown-header-type
+      var indexToRemove = 1;
+      var numberToRemove = 1;
+
+      graphChartData.splice(indexToRemove, numberToRemove);
+    }
+
+    lastCPUUsageData = Math.round(event.load * 100);
+
+    if(willDrawChart) {
+      setTimeout( drawChart(), 0 );
+    }
+	}
+
+  var result = deviceCpu.load(callback);
+  // document.getElementById('curve_chart').style.visibility = "flex";
+  console.log("deviceCpu.load, wait onLoadCallback...");
+}
+</script>
+<style>
+.console-log-div {
+  width: 95% !important;
+  background-color: #efefef;
+}
+#log {
+  margin: 10px 0px;
+  display: block;
+  white-space: pre;
+  font-family: monospace;
+}
+#log:before {
+  content: "log javascript:";
+  font-style: italic;
+  color: #555;
+}
+</style>
+<style>
+table {
+    width:100%;
+}
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 5px;
+    text-align: left;
+}
+table#t01 tr:nth-child(even) {
+    background-color: #eee;
+}
+table#t01 tr:nth-child(odd) {
+   background-color:#fff;
+}
+table#t01 th	{
+    background-color: black;
+    color: white;
+}
+</style>
+</head>
+<body>
+  <h1 style="font-family: verdana; text-align: center">SystemInformation DeviceAPI</h1>
+<table id="t01">
+  <tr>
+    <th width="20%">API</th>
+    <th width="30%">Description</th>
+    <th width="50%">DEMO</th>
+  </tr>
+  <tr>
+    <td>devicesound.deviceVolume</td>
+    <td>단말 볼륨 조회</td>
+    <td>
+      <button type="button" onclick="deviceVolume()" style="font-size: 15pt" >단말 볼륨 조회</button>
+    </td>
+  </tr>
+  <tr>
+    <td>devicesound.outputDeviceType</td>
+    <td>이어폰 탈착상태 확인</td>
+    <td>
+      <button type="button" onclick="outputDeviceType()" style="font-size: 15pt" >이어폰 탈착상태 확인</button>
+    </td>
+  </tr>
+  <tr>
+    <td>devicestorage.getDeviceStorage</td>
+    <td>단말 저장용량, SD카드 탈착상태 조회</td>
+    <td>
+      <button type="button" onclick="getDeviceStorage()" style="font-size: 15pt" >단말 저장용량, SD카드 탈착상태 확인</button>
+    </td>
+  </tr>
+  <tr>
+    <td>devicecpu.load</td>
+    <td>단말의 CPU 정보 조회</td>
+    <td>
+      <button type="button" onclick="load_chart()" style="font-size: 15pt" >단말의 CPU 정보 조회</button>
+    </td>
+  </tr>
+</table>
+<div style="margin:0 auto;">
+  <div id="curve_chart"></div><br>
+  <div id="chart_div" style="margin:0 auto; width:500px"></div>
+</div>
+<script src="console-log-div.js"></script>
+<script>
+flushDeviceAPISupportMessasge();
+</script>
+</body>
+</html>

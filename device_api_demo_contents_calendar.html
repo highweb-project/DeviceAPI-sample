@@ -1,0 +1,328 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<script type="text/javascript">
+var hasFindPermission = false;
+var hasAddPermission = false;
+var hasUpdatePermission = false;
+var hasDeletePermission = false;
+// const unsigned short SUCCESS = 99;
+
+function checkDeviceAPI() {
+  if (!self.calendar || typeof(calendar) === "undefined") {
+    return false;
+  }
+
+  return true;
+}
+
+function flushDeviceAPISupportMessasge() {
+  if(checkDeviceAPI()) {
+    console.log("이 브라우저는 Calendar DeviceAPI를 지원합니다.");
+  } else {
+    console.error("이 브라우저는 Calendar DeviceAPI를 지원하지 않습니다.");
+  }
+}
+
+function makeMillis(date, time) {
+  var date = new Date(date + " " + time);
+  var milliseconds = date.getTime();
+
+  return milliseconds;
+}
+
+function deleteEvent() {
+  if(hasDeletePermission == false) {
+    var permissionCallback = function(result) {
+      console.log("permissionCallback, result : " + result.code);
+
+      if(result.code == 99) {
+        hasDeletePermission = true;
+        deleteEvent();
+      }
+    }
+
+    calendar.acquirePermission("delete", permissionCallback);
+
+    return;
+  }
+
+  calendar.deleteEvent(document.getElementById("delete_id").value, function(result) {
+    console.log("calendar.deleteEvent, successCallback, result.resultCode : " + result.resultCode);
+  }, function(error) {
+    console.log("calendar.deleteEvent, errorCallback, error.code : " + error.code);
+  });
+}
+
+function updateEvent() {
+  if(hasUpdatePermission == false) {
+    var permissionCallback = function(result) {
+      console.log("permissionCallback, result : " + result.code);
+
+      if(result.code == 99) {
+        hasUpdatePermission = true;
+        updateEvent();
+      }
+    }
+
+    calendar.acquirePermission("update", permissionCallback);
+
+    return;
+  }
+
+  var startDate = document.getElementById("update_startDate").value;
+  var endDate = document.getElementById("update_endDate").value;
+
+  var startTime = document.getElementById("update_startTime").value;
+  var endTime = document.getElementById("update_endTime").value;
+
+  var startDateMillis = makeMillis(startDate, startTime);
+  var endDateMillis = makeMillis(endDate, endTime);
+
+  console.log("startDateMillis : " + startDateMillis + ", endDateMillis : " + endDateMillis);
+
+  var event = new CalendarEvent();
+  event.id = document.getElementById("update_id").value;
+  event.description = document.getElementById("update_description").value;
+  event.location = document.getElementById("update_location").value;
+  event.summary = document.getElementById("update_summary").value;
+  event.start = startDateMillis;
+  event.end = endDateMillis;
+
+  calendar.updateEvent(event, function(result) {
+    console.log("calendar.updateEvent, successCallback, result.resultCode : " + result.resultCode);
+  }, function(error) {
+    console.log("calendar.updateEvent, errorCallback, error.code : " + error.code);
+  });
+}
+
+function addEvent() {
+  if(hasAddPermission == false) {
+    var permissionCallback = function(result) {
+      console.log("permissionCallback, result : " + result.code);
+
+      if(result.code == 99) {
+        hasAddPermission = true;
+        addEvent();
+      }
+    }
+
+    calendar.acquirePermission("add", permissionCallback);
+
+    return;
+  }
+
+  var startDate = document.getElementById("add_startDate").value;
+  var endDate = document.getElementById("add_endDate").value;
+
+  var startTime = document.getElementById("add_startTime").value;
+  var endTime = document.getElementById("add_endTime").value;
+
+  var startDateMillis = makeMillis(startDate, startTime);
+  var endDateMillis = makeMillis(endDate, endTime);
+
+  console.log("startDateMillis : " + startDateMillis + ", endDateMillis : " + endDateMillis);
+
+  var event = new CalendarEvent();
+  event.description = document.getElementById("add_description").value;
+  event.location = document.getElementById("add_location").value;
+  event.summary = document.getElementById("add_summary").value;
+  event.start = startDateMillis;
+  event.end = endDateMillis;
+
+  calendar.addEvent(event, function(result) {
+    console.log("calendar.addEvent, successCallback, result.resultCode : " + result.resultCode);
+  }, function(error) {
+    console.log("calendar.addEvent, errorCallback, error.code : " + error.code);
+  });
+}
+
+function findEvent() {
+  if(hasFindPermission == false) {
+    var permissionCallback = function(result) {
+      console.log("permissionCallback, result : " + result.code);
+
+      if(result.code == 99) {
+        hasFindPermission = true;
+        findEvent();
+      }
+    }
+
+    calendar.acquirePermission("find", permissionCallback);
+
+    return;
+  }
+
+  var startDate = document.getElementById("find_startDate").value;
+  var endDate = document.getElementById("find_endDate").value;
+
+  var startTime = document.getElementById("find_startTime").value;
+  var endTime = document.getElementById("find_endTime").value;
+
+  var multiple = document.getElementById("find_input_target").value;
+
+  // 2016-01-22, 02:34
+  console.log("findEvent, startDate : " + startDate + ", startTime : " + startTime);
+  console.log("findEvent, endDate : " + endDate + ", endTime : " + endTime + ", multiple : " + multiple);
+
+  var startDateMillis = makeMillis(startDate, startTime);
+  var endDateMillis = makeMillis(endDate, endTime);
+
+  console.log("startDateMillis : " + startDateMillis + ", endDateMillis : " + endDateMillis);
+
+  var options = new CalendarFindOptions();
+  options.multiple = multiple;
+  options.filter.startAfter = startDateMillis;
+  options.filter.endBefore = endDateMillis;
+
+  calendar.findEvent(function(list) {
+    console.log("calendar.findEvent, successCallback, list.resultCode : " + list.resultCode + ", list.calendarList.length : " + list.calendarList.length);
+
+    for(var i=0; i<list.calendarList.length; i++) {
+      console.log("list.calendarList[" + i + "].id : " + list.calendarList[i].id);
+      console.log("list.calendarList[" + i + "].description : " + list.calendarList[i].description);
+      console.log("list.calendarList[" + i + "].location : " + list.calendarList[i].location);
+      console.log("list.calendarList[" + i + "].summary : " + list.calendarList[i].summary);
+      console.log("list.calendarList[" + i + "].start : " + list.calendarList[i].start);
+      console.log("list.calendarList[" + i + "].end : " + list.calendarList[i].end);
+      console.log("list.calendarList[" + i + "].status : " + list.calendarList[i].status);
+      console.log("list.calendarList[" + i + "].transparency : " + list.calendarList[i].transparency);
+      console.log("list.calendarList[" + i + "].reminder : " + list.calendarList[i].reminder);
+    }
+  }, function(error) {
+    console.log("calendar.findEvent, errorCallback, error.code : " + error.code);
+  }, options);
+}
+</script>
+<style>
+.console-log-div {
+  width: 95% !important;
+  background-color: #efefef;
+}
+#log {
+  margin: 10px 0px;
+  display: block;
+  white-space: pre;
+  font-family: monospace;
+}
+#log:before {
+  content: "log javascript:";
+  font-style: italic;
+  color: #555;
+}
+</style>
+<style>
+table {
+    width:100%;
+}
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 5px;
+    text-align: left;
+}
+table#t01 tr:nth-child(even) {
+    background-color: #eee;
+}
+table#t01 tr:nth-child(odd) {
+   background-color:#fff;
+}
+table#t01 th	{
+    background-color: black;
+    color: white;
+}
+</style>
+</head>
+<body>
+<h1 style="font-family: verdana; text-align: center">Calendar DeviceAPI</h1>
+<table id="t01">
+  <tr>
+    <th width="20%">API</th>
+    <th width="30%">Description</th>
+    <th width="50%">DEMO</th>
+  </tr>
+  <tr>
+    <td>addEvent</td>
+    <td>매개변수로 전달한 일정을 추가한다.</td>
+    <td>
+      설명: <input type="text" id="add_description" value="일정 상세 내용 입니다."><br>
+      장소: <input type="text" id="add_location" value="일정 장소 입니다."><br>
+      제목: <input type="text" id="add_summary" value="일정 제목 입니다."><br>
+      시작시간: <input type="date" id="add_startDate"> <input type="time" id="add_startTime"><br>
+      종료시간: <input type="date" id="add_endDate"> <input type="time" id="add_endTime"><br><br>
+      <button type="button" onclick="addEvent()" style="font-size: 15pt" >일정추가</button>
+    </td>
+  </tr>
+  <tr>
+    <td>findEvent</td>
+    <td>조건에 맞는 일정을 반환한다.</td>
+    <td>
+       시작날짜: <input type="date" id="find_startDate"> <input type="time" id="find_startTime"><br>
+       종료날짜: <input type="date" id="find_endDate"> <input type="time" id="find_endTime"><br>
+       multiple:
+       <select id="find_input_target" name="find_multiple" style="font-size: 15pt">
+        <option value="true" selected="true">true</option>
+        <option value="false">false</option>
+      </select><br><br>
+       <button type="button" onclick="findEvent()" style="font-size: 15pt" >일정조회</button>
+    </td>
+  </tr>
+  <tr>
+    <td>updateEvent</td>
+    <td>매개변수로 전달한 이벤트 ID와 동일한 일정의 정보를 수정한다.</td>
+    <td>
+      이벤트ID: <input type="number" id="update_id"><br>
+      설명: <input type="text" id="update_description" value="변경된 일정 설명 입니다."><br>
+      장소: <input type="text" id="update_location" value="변경된 일정 장소 입니다."><br>
+      제목: <input type="text" id="update_summary" value="변경된 일정 제목 입니다."><br>
+      시작시간: <input type="date" id="update_startDate"> <input type="time" id="update_startTime"><br>
+      종료시간: <input type="date" id="update_endDate"> <input type="time" id="update_endTime"><br><br>
+      <button type="button" onclick="updateEvent()" style="font-size: 15pt" >일정갱신</button>
+    </td>
+  </tr>
+  <tr>
+    <td>deleteEvent</td>
+    <td>매개변수로 전달한 이벤트 ID와 동일한 일정을 삭제한다.</td>
+    <td>
+      이벤트ID: <input type="number" id="delete_id"><br><br>
+      <button type="button" onclick="deleteEvent()" style="font-size: 15pt" >일정삭제</button>
+    </td>
+  </tr>
+</table>
+<script src="console-log-div.js"></script>
+<script>
+flushDeviceAPISupportMessasge();
+
+var now = new Date();
+
+var find_startDate = now
+var find_endDate = new Date(find_startDate.getTime() + (1000*60*60*24*3));
+
+document.getElementById('find_startDate').valueAsDate = find_startDate;
+document.getElementById('find_startTime').valueAsDate = find_startDate;
+document.getElementById('find_endDate').valueAsDate = find_endDate;
+document.getElementById('find_endTime').valueAsDate = find_endDate;
+
+var add_startDate = new Date(now.getTime() + (1000*60*60*3));
+var add_endDate = new Date(now.getTime() + (1000*60*60*4));
+
+document.getElementById('add_startDate').valueAsDate = add_startDate;
+document.getElementById('add_endDate').valueAsDate = add_startDate;
+document.getElementById('add_startTime').valueAsDate = add_endDate;
+document.getElementById('add_endTime').valueAsDate = add_endDate;
+
+var update_startDate = new Date(now.getTime() + (1000*60*60*28));
+var update_endDate = new Date(now.getTime() + (1000*60*60*30));
+
+document.getElementById('update_startDate').valueAsDate = update_startDate;
+document.getElementById('update_endDate').valueAsDate = update_startDate;
+document.getElementById('update_startTime').valueAsDate = update_endDate;
+document.getElementById('update_endTime').valueAsDate = update_endDate;
+
+</script>
+</body>
+</html>

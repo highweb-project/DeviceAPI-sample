@@ -1,0 +1,215 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<script type="text/javascript">
+function checkDeviceAPI() {
+  if (!navigator.devicegallery || typeof(navigator.devicegallery) === "undefined") {
+    return false;
+  }
+
+  return true;
+}
+
+function flushDeviceAPISupportMessasge() {
+  if(checkDeviceAPI()) {
+    console.log("이 브라우저는 Gallery DeviceAPI를 지원합니다.");
+  } else {
+    console.error("이 브라우저는 Gallery DeviceAPI를 지원하지 않습니다.");
+  }
+}
+
+var gallery = navigator.devicegallery;
+var canvas;
+var ctx;
+var file;
+var fr;
+var image;
+var blob;
+var list;
+var media;
+var remove;
+var index;
+
+window.onload = function() {
+	canvas = document.getElementById("canvas");
+	if (canvas == null || canvas.getContext == null) return;
+	ctx = canvas.getContext("2d");
+	image = new Image();
+	image.onload = function() {
+		ctx.drawImage(image, 0, 0);
+	}
+	fr = new FileReader();
+	fr.onload = createImage;
+	fr.addEventListener("load", createImage);
+	fr.addEventListener("loadend", createImage);
+	fr.addEventListener("error", error);
+
+	list = document.getElementById("menu");
+	list.addEventListener("click", function(e) {
+		if (e.target && e.target.nodeName == "LI") {
+			getfunction(media[e.target.id]);
+			index = e.target.id;
+		}
+	});
+	remove = document.getElementById("remove");
+	remove.disabled = true;
+}
+
+var createImage = function(){
+	console.log("createImage");
+	image.src = fr.result;
+	console.log("im.src = fr.result");
+	remove.disabled = false;
+}
+
+var error = function() {
+	console.log("error");
+}
+
+var clearChild = function() {
+	while(list.hasChildNodes()) {
+		list.removeChild(list.lastChild);
+	}
+}
+
+function findMedia() {
+	clearChild();
+	var fis = new GalleryMediaObject();
+	fis.title = "screen";
+	console.log(fis);
+	var findOptions = {
+		operation:"and",
+		findObject:fis,
+		maxItem:5
+	}
+	console.log(findOptions);
+	gallery.findMedia(findOptions, function(event) {
+		console.log(event.resultCode);
+		console.log(event);
+		media = event;
+		console.log(findOptions.findObject.type);
+		for(var i = 0; i < event.length; i++) {
+			console.log("==================");
+			console.log(event[i].type);
+			console.log(event[i].description);
+			console.log(event[i].id);
+			console.log(event[i].title);
+			console.log(event[i].fileName);
+			console.log(event[i].fileSize);
+			console.log(event[i].createdDate);
+			console.log(event[i].content.uri);
+			console.log("==================");
+			var li = document.createElement("li");
+			li.appendChild(document.createTextNode(event[i].title));
+			li.setAttribute("id", i);
+			list.appendChild(li);
+		}
+	},
+		function(event) {
+			console.log(event);
+	}
+	);
+}
+
+var getfunction = function(object) {
+	gallery.getMedia(object, function(event) {
+		console.log(event.resultCode);
+		console.log(event);
+		console.log(event[0].content.blob);
+		fr.readAsDataURL(event[0].content.blob);
+	},
+		function(event) {console.log(event);});
+}
+
+var removeMedia = function() {
+	gallery.deleteMedia(media[index], function(event) {
+		console.log(event);
+		if (event == gallery.SUCCESS) {
+			var child = document.getElementById(index);
+			// alert(child);
+			alert("Delete Success");
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			list.removeChild(child);
+		}
+	});
+}
+
+</script>
+<style>
+.console-log-div {
+  width: 95% !important;
+  background-color: #efefef;
+}
+#log {
+  margin: 10px 0px;
+  display: block;
+  white-space: pre;
+  font-family: monospace;
+}
+#log:before {
+  content: "log javascript:";
+  font-style: italic;
+  color: #555;
+}
+</style>
+<style>
+table {
+    width:100%;
+}
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 5px;
+    text-align: left;
+}
+table#t01 tr:nth-child(even) {
+    background-color: #eee;
+}
+table#t01 tr:nth-child(odd) {
+   background-color:#fff;
+}
+table#t01 th	{
+    background-color: black;
+    color: white;
+}
+</style>
+</head>
+<body>
+
+<h1 style="font-family: verdana; text-align: center">Gallery DeviceAPI</h1>
+<table id="t01">
+  <tr>
+    <th width="20%">API</th>
+    <th width="30%">Description</th>
+    <th width="50%">DEMO</th>
+  </tr>
+  <tr>
+    <td>findMedia</td>
+    <td>단말의 미디어 파일 중 매개변수로 전달한 조건에 맞는 모든 미디어를 반환한다.</td>
+    <td>
+      <button type="button" onclick="findMedia()" style="font-size: 15pt" >미디어 조회</button>
+    </td>
+  </tr>
+  <tr>
+    <td>deleteMedia</td>
+    <td>매개변수로 전달한 미디어를 단말에서 삭제한다.</td>
+    <td>
+      <button id="remove" type="button" onclick="removeMedia()" style="font-size: 15pt" >미디어 삭제</button>
+    </td>
+  </tr>
+</table>
+<ul id="menu">
+</ul>
+<canvas id="canvas" width="1920" height="1080">
+	이 브라우저는 캔버스를 지원하지 않습니다.
+</canvas>
+<script src="console-log-div.js"></script>
+<script>
+flushDeviceAPISupportMessasge();
+</script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<script type="text/javascript">
+function checkDeviceAPI() {
+  if (!navigator.applauncher || typeof(navigator.applauncher) === "undefined") {
+    return false;
+  }
+
+  return true;
+}
+
+function flushDeviceAPISupportMessasge() {
+  if(checkDeviceAPI()) {
+    console.log("이 브라우저는 ApplicationLauncher DeviceAPI를 지원합니다.");
+  } else {
+    console.error("이 브라우저는 ApplicationLauncher DeviceAPI를 지원하지 않습니다.");
+  }
+}
+
+function getAppList() {
+  var AppLauncher = navigator.applauncher;
+  var callback = function(event) {
+    var ApplicationInfo = event.appList;
+
+    console.log("총 " + ApplicationInfo.length + "개의 정보가 조회됨, 처음 3개의 정보만 출력합니다.");
+    for(var i = 0; i < ApplicationInfo.length && i < 3; i++) {
+      console.log("========== Application #" + i + " ========== ");
+      console.log("name : " + ApplicationInfo[i].name + ", className : " + ApplicationInfo[i].className + ", dataDir : " + ApplicationInfo[i].dataDir);
+      console.log("enabled : " + ApplicationInfo[i].enabled + ", flags : " + ApplicationInfo[i].flags + ", permission : " + ApplicationInfo[i].permission + ", processName : " + ApplicationInfo[i].processName);
+      console.log("targetSdkVersion : " + ApplicationInfo[i].targetSdkVersion + ", theme : " + ApplicationInfo[i].theme + ", uid : " + ApplicationInfo[i].uid);
+    }
+  }
+
+  var result = AppLauncher.getAppList(callback);
+}
+
+function launchApp() {
+  var AppLauncher = navigator.applauncher;
+  var result = AppLauncher.launchApp(document.getElementById("launchApp_PackageName").value, document.getElementById("launchApp_ActivityName").value);
+  console.log("AppLauncher.launchApp result : " + result);
+}
+
+function removeApp() {
+  var AppLauncher = navigator.applauncher;
+  var callback = function(event) {
+    console.log("AppLauncher.removeApp callback result : " + event.resultCode);
+  }
+
+  var result = AppLauncher.removeApp(document.getElementById("removeApp_PackageName").value, callback);
+  console.log("AppLauncher.removeApp result : " + result);
+}
+
+function getApplicationInfo() {
+  var AppLauncher = navigator.applauncher;
+  var callback = function(event)
+	{
+		console.log("AppLauncher.getApplicationInfo resultCode : " + event.resultCode);
+
+		var ApplicationInfo = event.appInfo;
+    console.log("name : " + ApplicationInfo.name + ", className : " + ApplicationInfo.className + ", dataDir : " + ApplicationInfo.dataDir);
+    console.log("enabled : " + ApplicationInfo.enabled + ", flags : " + ApplicationInfo.flags + ", permission : " + ApplicationInfo.permission + ", processName : " + ApplicationInfo.processName);
+    console.log("targetSdkVersion : " + ApplicationInfo.targetSdkVersion + ", theme : " + ApplicationInfo.theme + ", uid : " + ApplicationInfo.uid);
+	}
+
+  var flags = document.getElementById("getApplicationInfo_Flags").value;
+	if (flags) {
+		var flag_value;
+		if (flags == "AppLauncher.FLAG_GET_META_DATA") {
+			flag_value = AppLauncher.FLAG_GET_META_DATA;
+    }
+		else if(flags == "AppLauncher.FLAG_SHARED_LIBRARY_FILES") {
+			flag_value = AppLauncher.FLAG_SHARED_LIBRARY_FILES;
+    }
+		else if(flags == "AppLauncher.FLAG_GET_UNINSTALLED_PACKAGES") {
+			flag_value = AppLauncher.FLAG_GET_UNINSTALLED_PACKAGES;
+    }
+		else {
+			flag_value = flags;
+    }
+
+		AppLauncher.getApplicationInfo(document.getElementById("getApplicationInfo_PackageName").value, flag_value, callback);
+	}
+	else {
+		AppLauncher.getApplicationInfo(document.getElementById("getApplicationInfo_PackageName").value, callback);
+  }
+}
+</script>
+<style>
+.console-log-div {
+  width: 95% !important;
+  background-color: #efefef;
+}
+#log {
+  margin: 10px 0px;
+  display: block;
+  white-space: pre;
+  font-family: monospace;
+}
+#log:before {
+  content: "log javascript:";
+  font-style: italic;
+  color: #555;
+}
+</style>
+<style>
+table {
+    width:100%;
+}
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 5px;
+    text-align: left;
+}
+table#t01 tr:nth-child(even) {
+    background-color: #eee;
+}
+table#t01 tr:nth-child(odd) {
+   background-color:#fff;
+}
+table#t01 th	{
+    background-color: black;
+    color: white;
+}
+</style>
+</head>
+<body>
+
+<h1 style="font-family: verdana; text-align: center">ApplicationLauncher DeviceAPI</h1>
+<table id="t01">
+  <tr>
+    <th width="20%">API</th>
+    <th width="30%">Description</th>
+    <th width="50%">DEMO</th>
+  </tr>
+  <tr>
+    <td>getAppList</td>
+    <td>단말에 설치되어 있는 앱 리스트를 획득한다.</td>
+    <td>
+      <button type="button" onclick="getAppList()" style="font-size: 15pt" >앱 리스트 조회</button>
+    </td>
+  </tr>
+  <tr>
+    <td>launchApp</td>
+    <td>단말에 설치되어 있는 앱을 실행한다.</td>
+    <td>
+      PackageName: <input type="text" id="launchApp_PackageName" value="com.google.android.youtube" style="font-size : 15pt; width:95%"><br>
+      ActivityName: <input type="text" id="launchApp_ActivityName" value="com.google.android.youtube.app.honeycomb.Shell$HomeActivity" style="font-size : 15pt; width:95%"><br><br>
+      <button type="button" onclick="launchApp()" style="font-size: 15pt" >앱 실행</button>
+    </td>
+  </tr>
+  <tr>
+    <td>removeApp</td>
+    <td>단말에 설치되어 있는 앱을 삭제한다.</td>
+    <td>
+      PackageName: <input type="text" id="removeApp_PackageName" value="com.google.android.youtube" style="font-size : 15pt; width:95%"><br><br>
+      <button type="button" onclick="removeApp()" style="font-size: 15pt" >앱 삭제</button>
+    </td>
+  </tr>
+  <tr>
+    <td>getApplicationInfo</td>
+    <td>특정 앱의 정보를 조회한다.</td>
+    <td>
+      PackageName: <input type="text" id="getApplicationInfo_PackageName" value="com.google.android.youtube" style="font-size : 15pt; width:95%"><br>
+      Flags: <input type="text" id="getApplicationInfo_Flags" style="font-size : 15pt; width: 95%;"><br><br>
+      <button type="button" onclick="getApplicationInfo()" style="font-size: 15pt" >앱 정보 조회</button>
+    </td>
+  </tr>
+</table>
+<script src="console-log-div.js"></script>
+<script>
+flushDeviceAPISupportMessasge();
+</script>
+</body>
+</html>

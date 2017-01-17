@@ -1,0 +1,277 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<script type="text/javascript">
+function checkDeviceAPI() {
+  if (!navigator.messaging || typeof(navigator.messaging) === "undefined") {
+    return false;
+  }
+
+  return true;
+}
+
+function flushDeviceAPISupportMessasge() {
+  if(checkDeviceAPI()) {
+    console.log("이 브라우저는 Messaging DeviceAPI를 지원합니다.");
+  } else {
+    console.error("이 브라우저는 Messaging DeviceAPI를 지원하지 않습니다.");
+  }
+}
+</script>
+<script>
+
+var API_FIND = "find";
+var API_SEND = "send";
+
+//ContactFindOptions
+var VAL_TARGET = "target";
+var VAL_MAX_NUMBER = "max_number";
+var VAL_CONDITION = "condition";
+//ContactObject
+var VAL_ID = "id";
+var VAL_TYPE = "type";
+var VAL_TO = "to";
+var VAL_FROM = "from";
+var VAL_TITLE = "title";
+var VAL_BODY = "body";
+
+function sendMessage() {
+	clearLog();
+
+	var newMessage = new MessageObject();
+	newMessage.type = getInputValue(API_SEND, VAL_TYPE);
+	newMessage.to = getInputValue(API_SEND, VAL_TO);
+	newMessage.body = getInputValue(API_SEND, VAL_BODY);
+
+	navigator.messaging.sendMessage(newMessage);
+}
+
+function findMessage() {
+	clearLog();
+
+	navigator.messaging.findMessage(
+		{
+			target:getInputValue(API_FIND, VAL_TARGET),
+			maxItem:getInputValue(API_FIND, VAL_MAX_NUMBER),
+			condition:getInputValue(API_FIND, VAL_CONDITION)
+		},
+		function(results) {
+			aLog("findMessage Success");
+
+			for (item in results) {
+				dumpMessage(results[item]);
+			}
+		},
+		function(error) {
+			aLog("findMessage error="+getErrorName(error));
+		}
+	)
+}
+
+var listening = false;
+function handleListener() {
+	if(listening) {
+		listening = false;
+		document.getElementById("btn_handle_listener").value = "Start Listening";
+
+		navigator.messaging.onmessagereceived = null;
+	}
+	else {
+		listening = true;
+		document.getElementById("btn_handle_listener").value = "Stop Listening";
+
+		navigator.messaging.onmessagereceived = messageListener;
+	}
+}
+
+function messageListener(message) {
+	console.log("!!!");
+	dumpMessage(message.value);
+}
+
+function getErrorName(value) {
+	switch(value) {
+		case 0:
+			return "UNKNOWN_ERROR";
+		case 1:
+			return "INVALID_ARGUMNET_ERROR";
+		case 3:
+			return "TIMEOUT_ERROR";
+		case 4:
+			return "PENDING_OPERATION_ERROR";
+		case 5:
+			return "IO_ERROR";
+		case 6:
+			return "NOT_SUPPORTED_ERROR";
+		case 20:
+			return "PERMISSION_DENIED_ERROR";
+		case 30:
+			return "MESSAGE_SIZE_EXCEEDED";
+	}
+}
+
+function getInputValue(apiName, inputName) {
+	console.log(apiName+"_input_"+inputName);
+	return document.getElementById(apiName+"_input_"+inputName).value;
+}
+
+var tabContents;
+window.onload = function() {
+	tabContents = [
+		document.getElementById("send"),
+		document.getElementById("find"),
+		document.getElementById("listener")
+	];
+}
+
+function changeTab(index) {
+	for(idx in tabContents) {
+		if(idx == index) {
+			tabContents[idx].style.display = "block";
+		}
+		else {
+			tabContents[idx].style.display = "none";
+		}
+	}
+
+	clearLog();
+}
+
+function clearLog() {
+	// document.getElementById("log").innerHTML = "";
+}
+
+function aLog(log) {
+	// var original_log = document.getElementById("log").innerHTML;
+
+	// document.getElementById("log").innerHTML = "";
+
+	// document.getElementById("log").innerHTML = original_log + "<br>" + log;
+  console.log(log);
+}
+
+function dumpMessage(message) {
+	aLog("==Dump message==");
+	aLog("id="+message.id);
+	aLog("type="+message.type);
+	aLog("to="+message.to);
+	aLog("from="+message.from);
+	aLog("title="+message.title);
+	aLog("body="+message.body);
+	aLog("date="+message.date);
+}
+
+function dumpMessageConsole(message) {
+	console.log("==Dump message==");
+	console.log("id="+message.id);
+	console.log("type="+message.type);
+	console.log("to="+message.to);
+	console.log("from="+message.from);
+	console.log("title="+message.title);
+	console.log("body="+message.body);
+	console.log("date="+message.date);
+}
+
+</script>
+<style>
+.console-log-div {
+  width: 95% !important;
+  background-color: #efefef;
+}
+#log {
+  margin: 10px 0px;
+  display: block;
+  white-space: pre;
+  font-family: monospace;
+}
+#log:before {
+  content: "log javascript:";
+  font-style: italic;
+  color: #555;
+}
+</style>
+<style>
+table {
+    width:100%;
+}
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 5px;
+    text-align: left;
+}
+table#t01 tr:nth-child(even) {
+    background-color: #eee;
+}
+table#t01 tr:nth-child(odd) {
+   background-color:#fff;
+}
+table#t01 th	{
+    background-color: black;
+    color: white;
+}
+</style>
+</head>
+<body>
+<h1 style="font-family: verdana; text-align: center">Messaging DeviceAPI</h1>
+<table id="t01">
+  <tr>
+    <th width="20%">API</th>
+    <th width="30%">Description</th>
+    <th width="50%">DEMO</th>
+  </tr>
+  <tr>
+    <td>onmessagereceived</td>
+    <td>단말의 메시지 수신 이벤트를 수신한다.</td>
+    <td>
+      <input id="btn_handle_listener" type="button" value="Start Listening" style="font-size: 15pt" onclick="handleListener();"></input>
+    </td>
+  </tr>
+  <tr>
+    <td>sendMessage</td>
+    <td>메시지를 전송한다.</td>
+    <td>
+      Type
+      <select id="send_input_type" name="target">
+				<option value="sms" selected="true">sms</option>
+			</select>
+      <br>
+      To
+      <input id="send_input_to" type="number" value="01031907156"></input>
+      <br>
+      Body
+      <input id="send_input_body" type="text" value="DeviceAPI Message"></input>
+      <br><br>
+      <button type="button" onclick="sendMessage()" style="font-size: 15pt">메시지 전송</button>
+    </td>
+  </tr>
+  <tr>
+    <td>findMessage</td>
+    <td>메시지를 검색한다.</td>
+    <td>
+      Find target
+      <select id="find_input_target" name="target">
+				<option value="from" selected="true">from</option>
+				<option value="body">body</option>
+			</select>
+      <br>
+      Max find numbers
+      <input id="find_input_max_number" type="number" value="1"></input>
+      <br>
+      Find condition
+      <input id="find_input_condition" type="text" value="01031907156"></input>
+      <br><br>
+      <button type="button" onclick="findMessage()" style="font-size: 15pt">메시지 검색</button>
+    </td>
+  </tr>
+</table>
+<script src="console-log-div.js"></script>
+<script>
+flushDeviceAPISupportMessasge();
+</script>
+</body>
+</html>

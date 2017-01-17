@@ -1,0 +1,568 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<script type="text/javascript">
+function checkDeviceAPI() {
+  if (!navigator.contact || typeof(navigator.contact) === "undefined") {
+    return false;
+  }
+
+  return true;
+}
+
+function flushDeviceAPISupportMessasge() {
+  if(checkDeviceAPI()) {
+    console.log("이 브라우저는 Contact DeviceAPI를 지원합니다.");
+  } else {
+    console.error("이 브라우저는 Contact DeviceAPI를 지원하지 않습니다.");
+  }
+}
+</script>
+<script>
+
+var API_FIND = "find";
+var API_ADD = "add";
+var	API_DELETE = "delete";
+var API_UPDATE = "update";
+
+//ContactFindOptions
+var VAL_TARGET = "target";
+var VAL_MAX_NUMBER = "max_number";
+var VAL_CONDITION = "condition";
+//ContactObject
+var VAL_ID = "id";
+var VAL_NAME = "name";
+var VAL_PHONE = "phone";
+var VAL_EMAIL = "email";
+var VAL_ADDRESS = "address";
+var VAL_CATEGORY = "category";
+//ContactName
+var VAL_FAMILY = "family";
+var VAL_GIVEN = "given";
+var VAL_MIDDLE = "middle";
+var VAL_PREFIX = "prefix";
+var VAL_SUFFIX = "suffix";
+//ContactAddress
+var VAL_TYPE = "type";
+var VAL_STREET = "street";
+var VAL_LOCALITY = "locality";
+var VAL_REGION = "region";
+var VAL_POSTAL = "postal";
+var VAL_COUNTRY = "country";
+
+function findContact() {
+	clearLog();
+
+	navigator.contact.findContact(
+		{
+			target:getInputValue(API_FIND, VAL_TARGET),
+			maxItem:getInputValue(API_FIND, VAL_MAX_NUMBER),
+			condition:getInputValue(API_FIND, VAL_CONDITION)
+		},
+		function(results) {
+			aLog("findContact Success");
+
+			for (item in results) {
+				dumpContact(results[item]);
+			}
+		},
+		function(error) {
+			aLog("findContact error="+getErrorName(error));
+		}
+	)
+}
+
+function addContact() {
+	clearLog();
+
+	var newContact = new ContactObject();
+	newContact.displayName = getInputValue(API_ADD, VAL_NAME);
+	newContact.phoneNumber = getInputValue(API_ADD, VAL_PHONE);
+	newContact.emails = getInputValue(API_ADD, VAL_EMAIL);
+	newContact.address = getInputValue(API_ADD, VAL_ADDRESS);
+	newContact.categories = [getInputValue(API_ADD, VAL_CATEGORY)];
+
+	if(document.getElementById("add_input_add_structured_address").checked) {
+		var newStructuredAddress = new ContactAddress();
+		newStructuredAddress.streetAddress = getInputValue(API_ADD, VAL_STREET);
+		newStructuredAddress.locality = getInputValue(API_ADD, VAL_LOCALITY);
+		newStructuredAddress.region = getInputValue(API_ADD, VAL_REGION);
+		newStructuredAddress.postalCode = getInputValue(API_ADD, VAL_POSTAL);
+		newStructuredAddress.country = getInputValue(API_ADD, VAL_COUNTRY);
+		newContact.structuredAddress = newStructuredAddress;
+	}
+
+	if(document.getElementById("add_input_add_structured_name").checked) {
+		var newStructuredName = new ContactName();
+		newStructuredName.familyName = getInputValue(API_ADD, VAL_FAMILY);
+		newStructuredName.givenName = getInputValue(API_ADD, VAL_GIVEN);
+		newStructuredName.middleName = getInputValue(API_ADD, VAL_MIDDLE);
+		newStructuredName.honorificPrefix = getInputValue(API_ADD, VAL_PREFIX);
+		newStructuredName.honorificSuffix = getInputValue(API_ADD, VAL_SUFFIX);
+		newContact.structuredName = newStructuredName;
+	}
+
+	navigator.contact.addContact(newContact, function(results) {
+		aLog("addContact Success");
+		dumpContact(results[0]);
+
+	},
+	function(error) {
+		aLog("addContact error="+getErrorName(error));
+	});
+}
+
+function deleteContact() {
+	clearLog();
+
+	navigator.contact.deleteContact(
+		{
+			target:getInputValue(API_DELETE, VAL_TARGET),
+			maxItem:getInputValue(API_DELETE, VAL_MAX_NUMBER),
+			condition:getInputValue(API_DELETE, VAL_CONDITION)
+		},
+		function(results) {
+			aLog("deleteContact Success");
+
+			for (item in results) {
+				dumpContact(results[item]);
+			}
+		},
+		function(error) {
+			aLog("deleteContact error="+getErrorName(error));
+		}
+	)
+}
+
+function updateContact() {
+	clearLog();
+
+	clearLog();
+
+	var newContact = new ContactObject();
+	newContact.id = getInputValue(API_UPDATE, VAL_ID);
+	newContact.displayName = getInputValue(API_UPDATE, VAL_NAME);
+	newContact.phoneNumber = getInputValue(API_UPDATE, VAL_PHONE);
+	newContact.emails = getInputValue(API_UPDATE, VAL_EMAIL);
+	newContact.address = getInputValue(API_UPDATE, VAL_ADDRESS);
+	newContact.categories = [getInputValue(API_UPDATE, VAL_CATEGORY)];
+
+	if(document.getElementById("update_input_add_structured_address").checked) {
+		var newStructuredAddress = new ContactAddress();
+		newStructuredAddress.streetAddress = getInputValue(API_UPDATE, VAL_STREET);
+		newStructuredAddress.locality = getInputValue(API_UPDATE, VAL_LOCALITY);
+		newStructuredAddress.region = getInputValue(API_UPDATE, VAL_REGION);
+		newStructuredAddress.postalCode = getInputValue(API_UPDATE, VAL_POSTAL);
+		newStructuredAddress.country = getInputValue(API_UPDATE, VAL_COUNTRY);
+		newContact.structuredAddress = newStructuredAddress;
+	}
+
+	if(document.getElementById("update_input_add_structured_name").checked) {
+		var newStructuredName = new ContactName();
+		newStructuredName.familyName = getInputValue(API_UPDATE, VAL_FAMILY);
+		newStructuredName.givenName = getInputValue(API_UPDATE, VAL_GIVEN);
+		newStructuredName.middleName = getInputValue(API_UPDATE, VAL_MIDDLE);
+		newStructuredName.honorificPrefix = getInputValue(API_UPDATE, VAL_PREFIX);
+		newStructuredName.honorificSuffix = getInputValue(API_UPDATE, VAL_SUFFIX);
+		newContact.structuredName = newStructuredName;
+	}
+
+	navigator.contact.updateContact(newContact, function(results) {
+		aLog("updateContact Success");
+		dumpContact(results[0]);
+
+	},
+	function(error) {
+		aLog("updateContact error="+getErrorName(error));
+	});
+}
+
+function getErrorName(value) {
+	switch(value) {
+		case 0:
+			return "UNKNOWN_ERROR";
+		case 1:
+			return "INVALID_ARGUMNET_ERROR";
+		case 3:
+			return "TIMEOUT_ERROR";
+		case 4:
+			return "PENDING_OPERATION_ERROR";
+		case 5:
+			return "IO_ERROR";
+		case 6:
+			return "NOT_SUPPORTED_ERROR";
+		case 20:
+			return "PERMISSION_DENIED_ERROR";
+		case 30:
+			return "MESSAGE_SIZE_EXCEEDED";
+	}
+}
+
+function getInputValue(apiName, inputName) {
+	console.log("apiName : " + apiName + ", inputName : " + inputName + ", value : " + document.getElementById(apiName+"_input_"+inputName).value);
+	return document.getElementById(apiName+"_input_"+inputName).value;
+}
+
+function clearLog() {
+	//document.getElementById("log").innerHTML = "";
+}
+
+function aLog(log) {
+	//var original_log = document.getElementById("log").innerHTML;
+
+	//document.getElementById("log").innerHTML = "";
+
+	//document.getElementById("log").innerHTML = original_log + "<br>" + log;
+  console.log(log);
+}
+
+function dumpContact(contact) {
+	aLog("==Dump contact==")
+	aLog("id="+contact.id);
+	aLog("name="+contact.displayName);
+	aLog("phone="+contact.phoneNumber);
+	aLog("email="+contact.emails);
+	aLog("address="+contact.address);
+	for(item in contact.categories) {
+		aLog("group="+contact.categories[item]);
+	}
+}
+
+</script>
+<style>
+.console-log-div {
+  width: 95% !important;
+  background-color: #efefef;
+}
+#log {
+  margin: 10px 0px;
+  display: block;
+  white-space: pre;
+  font-family: monospace;
+}
+#log:before {
+  content: "log javascript:";
+  font-style: italic;
+  color: #555;
+}
+</style>
+<style>
+table {
+    width:100%;
+}
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 5px;
+    text-align: left;
+}
+table#t01 tr:nth-child(even) {
+    background-color: #eee;
+}
+table#t01 tr:nth-child(odd) {
+   background-color:#fff;
+}
+table#t01 th	{
+    background-color: black;
+    color: white;
+}
+</style>
+</head>
+<body>
+<h1 style="font-family: verdana; text-align: center">Contact DeviceAPI</h1>
+<table id="t01">
+  <tr>
+    <th width="20%">API</th>
+    <th width="30%">Description</th>
+    <th width="50%">DEMO</th>
+  </tr>
+  <tr>
+    <td>addContact</td>
+    <td>주소록 정보를 추가한다.</td>
+    <td>
+      Name:
+      <input id="add_input_name" type="text" value="Test123" style="font-size: 15pt"></input>
+      <br>
+      Phone:
+      <input id="add_input_phone" type="number" value="01012341234" style="font-size: 15pt"></input>
+      <br>
+      Email:
+      <input id="add_input_email" type="text" value="test@test.com" style="font-size: 15pt"></input>
+      <br>
+      Address:
+      <input id="add_input_address" type="text" value="Test Street..." style="font-size: 15pt"></input>
+      <br>
+      Category:
+      <input id="add_input_category" type="text" value="Test" style="font-size: 15pt"></input>
+      <br><br>
+      <input id="add_input_add_structured_name" type="checkbox">Add Structured Name</input>
+      <table style="width:100%; border:1px solid black;">
+      	<tr>
+      		<td style="width:50%;">
+      			Family Name
+      		</td>
+      		<td style="width:50%;">
+      			<input id="add_input_family" type="text" value="Hong"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Given Name
+      		</td>
+      		<td style="width:50%;">
+      			<input id="add_input_given" type="text" value="Junpyo"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Middle Name
+      		</td>
+      		<td style="width:50%;">
+      			<input id="add_input_middle" type="text" value="ASB"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Prefix
+      		</td>
+      		<td style="width:50%;">
+      			<input id="add_input_prefix" type="text" value="Sir"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Suffix
+      		</td>
+      		<td style="width:50%;">
+      			<input id="add_input_suffix" type="text" value=""></input>
+      		</td>
+      	</tr>
+      </table>
+      <br>
+      <input id="add_input_add_structured_address" type="checkbox">Add Structured Address</input>
+      <table style="width:100%; border:1px solid black;">
+      	<tr>
+      		<td style="width:50%;">
+      			Type
+      		</td>
+      		<td style="width:50%;">
+      			<input id="add_input_type" type="text" value=""></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Street
+      		</td>
+      		<td style="width:50%;">
+      			<input id="add_input_street" type="text" value="Gasanro"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Locality
+      		</td>
+      		<td style="width:50%;">
+      			<input id="add_input_locality" type="text" value="Pyoungchondongg"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Region
+      		</td>
+      		<td style="width:50%;">
+      			<input id="add_input_region" type="text" value="Anyangsi"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Postal Code
+      		</td>
+      		<td style="width:50%;">
+      			<input id="add_input_postal" type="text" value="123123"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Country
+      		</td>
+      		<td style="width:50%;">
+      			<input id="add_input_country" type="text" value="Korea, Republic of"></input>
+      		</td>
+      	</tr>
+      </table>
+      <br>
+      <button type="button" onclick="addContact()" style="font-size: 15pt" >연락처 추가</button>
+    </td>
+  </tr>
+  <tr>
+    <td>findContact</td>
+    <td>주소록 정보를 검색한다.</td>
+    <td>
+      Find target:
+      <select id="find_input_target" name="target" style="font-size: 15pt">
+				<option value="name" selected="true">name</option>
+				<option value="phone">phone</option>
+				<option value="email">email</option>
+			</select>
+      <br>
+      Max find numbers:
+      <input id="find_input_max_number" type="number" value="1" style="font-size: 15pt"></input>
+      <br>
+      Find condition:
+      <input id="find_input_condition" type="text" value="Test123" style="font-size: 15pt"></input>
+      <br><br>
+      <button type="button" onclick="findContact()" style="font-size: 15pt" >연락처 찾기</button>
+    </td>
+  </tr>
+  <tr>
+    <td>updateContact</td>
+    <td>주소록 정보를 갱신한다.</td>
+    <td>
+      ID
+      <input id="update_input_id" type="number" value=""></input>
+      <br>
+      Name
+      <input id="update_input_name" type="text" value="Test321"></input>
+      <br>
+      Phone
+      <input id="update_input_phone" type="number" value="01043214321"></input>
+      <br>
+      Email
+      <input id="update_input_email" type="text" value="test@unknown.com"></input>
+      <br>
+      Address
+      <input id="update_input_address" type="text" value="Test Street..."></input>
+      <br>
+      Category
+      <input id="update_input_category" type="text" value="Test"></input>
+      <br><br>
+      <input id="update_input_add_structured_name" type="checkbox">Add Structured Name</input>
+      <table style="width:100%; border:1px solid black;">
+      	<tr>
+      		<td style="width:50%;">
+      			Family Name
+      		</td>
+      		<td style="width:50%;">
+      			<input id="update_input_family" type="text" value="Hong"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Given Name
+      		</td>
+      		<td style="width:50%;">
+      			<input id="update_input_given" type="text" value="Junpyo"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Middle Name
+      		</td>
+      		<td style="width:50%;">
+      			<input id="update_input_middle" type="text" value="ASB"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Prefix
+      		</td>
+      		<td style="width:50%;">
+      			<input id="update_input_prefix" type="text" value="Sir"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Suffix
+      		</td>
+      		<td style="width:50%;">
+      			<input id="update_input_suffix" type="text" value=""></input>
+      		</td>
+      	</tr>
+      </table>
+      <br>
+      <input id="update_input_add_structured_address" type="checkbox">Add Structured Address</input>
+      <table style="width:100%; border:1px solid black;">
+      	<tr>
+      		<td style="width:50%;">
+      			Type
+      		</td>
+      		<td style="width:50%;">
+      			<input id="update_input_type" type="text" value=""></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Street
+      		</td>
+      		<td style="width:50%;">
+      			<input id="update_input_street" type="text" value="Gasanro"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Locality
+      		</td>
+      		<td style="width:50%;">
+      			<input id="update_input_locality" type="text" value="Pyoungchondongg"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Region
+      		</td>
+      		<td style="width:50%;">
+      			<input id="update_input_region" type="text" value="Anyangsi"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Postal Code
+      		</td>
+      		<td style="width:50%;">
+      			<input id="update_input_postal" type="text" value="123123"></input>
+      		</td>
+      	</tr>
+      	<tr>
+      		<td style="width:50%;">
+      			Country
+      		</td>
+      		<td style="width:50%;">
+      			<input id="update_input_country" type="text" value="Korea, Republic of"></input>
+      		</td>
+      	</tr>
+      </table>
+      <br><br>
+      <button type="button" onclick="updateContact()" style="font-size: 15pt" >연락처 갱신</button>
+    </td>
+  </tr>
+  <tr>
+    <td>deleteContact</td>
+    <td>주소록 정보를 삭제한다.</td>
+    <td>
+      Delete target:
+      <select id="delete_input_target" name="target">
+				<option value="name" selected="true">name</option>
+				<option value="phone">phone</option>
+				<option value="email">email</option>
+			</select>
+      <br>
+      Max delete numbers
+      <input id="delete_input_max_number" type="number" value="1"></input>
+      <br>
+      Delete condition
+      <input id="delete_input_condition" type="text" value="Test321"></input>
+      <br><br>
+      <button type="button" onclick="deleteContact()" style="font-size: 15pt" >연락처 삭제</button>
+    </td>
+  </tr>
+</table>
+<script src="console-log-div.js"></script>
+<script>
+flushDeviceAPISupportMessasge();
+</script>
+</body>
+</html>
