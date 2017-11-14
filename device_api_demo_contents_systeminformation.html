@@ -161,9 +161,11 @@ function load() {
   var lastDrawChartTime = getCurrentTimeMillis();
 
   var callback = function(event) {
-    //console.log("deviceCpu.load callback resultCode : " + event.resultCode);
+    // console.log("deviceCpu.load callback resultCode : " + event.resultCode);
     // console.log("CPU Load : " + event.load * 100 + "%");
-
+    if (event.load < 0) {
+      return;
+    }
     var willDrawChart = false;
     var deltaDrawChart = getCurrentTimeMillis() - lastDrawChartTime;
     // console.log("deltaDrawChart : " + deltaDrawChart);

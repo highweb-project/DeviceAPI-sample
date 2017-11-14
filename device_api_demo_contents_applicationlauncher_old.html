@@ -28,9 +28,10 @@ function getAppList() {
     console.log("총 " + ApplicationInfo.length + "개의 정보가 조회됨, 처음 10개의 정보만 출력합니다.");
     for(var i = 0; i < ApplicationInfo.length && i < 10; i++) {
       console.log("========== Application #" + i + " ========== ");
-      console.log("name : " + ApplicationInfo[i].name + ", id : " + ApplicationInfo[i].id);
-      console.log("url : " + ApplicationInfo[i].url + ", version : " + ApplicationInfo[i].version);
-      console.log("iconUrl : " + ApplicationInfo[i].iconUrl);
+      console.log("name : " + ApplicationInfo[i].name + ", className : " + ApplicationInfo[i].className + ", dataDir : " + ApplicationInfo[i].dataDir);
+      console.log("enabled : " + ApplicationInfo[i].enabled + ", flags : " + ApplicationInfo[i].flags + ", permission : " + ApplicationInfo[i].permission + ", processName : " + ApplicationInfo[i].processName);
+      console.log("targetSdkVersion : " + ApplicationInfo[i].targetSdkVersion + ", theme : " + ApplicationInfo[i].theme + ", uid : " + ApplicationInfo[i].uid);
+      console.log("PackageName : " + ApplicationInfo[i].packageName);
     }
   }
 
@@ -39,7 +40,7 @@ function getAppList() {
 
 function launchApp() {
   var AppLauncher = navigator.applauncher;
-  var result = AppLauncher.launchApp(document.getElementById("launchApp_AppId").value);
+  var result = AppLauncher.launchApp(document.getElementById("launchApp_PackageName").value, document.getElementById("launchApp_ActivityName").value);
   console.log("AppLauncher.launchApp result : " + result);
 }
 
@@ -49,7 +50,7 @@ function removeApp() {
     console.log("AppLauncher.removeApp callback result : " + event.resultCode);
   }
 
-  var result = AppLauncher.removeApp(document.getElementById("removeApp_AppId").value, callback);
+  var result = AppLauncher.removeApp(document.getElementById("removeApp_PackageName").value, callback);
   console.log("AppLauncher.removeApp result : " + result);
 }
 
@@ -60,11 +61,32 @@ function getApplicationInfo() {
 		console.log("AppLauncher.getApplicationInfo resultCode : " + event.resultCode);
 
 		var ApplicationInfo = event.appInfo;
-    console.log("name : " + ApplicationInfo.name + ", id : " + ApplicationInfo.id);
-    console.log("url : " + ApplicationInfo.url + ", version : " + ApplicationInfo.version);
-    console.log("iconUrl : " + ApplicationInfo.iconUrl);
+    console.log("name : " + ApplicationInfo.name + ", className : " + ApplicationInfo.className + ", dataDir : " + ApplicationInfo.dataDir);
+    console.log("enabled : " + ApplicationInfo.enabled + ", flags : " + ApplicationInfo.flags + ", permission : " + ApplicationInfo.permission + ", processName : " + ApplicationInfo.processName);
+    console.log("targetSdkVersion : " + ApplicationInfo.targetSdkVersion + ", theme : " + ApplicationInfo.theme + ", uid : " + ApplicationInfo.uid);
 	}
-	AppLauncher.getApplicationInfo(document.getElementById("getApplicationInfo_AppId").value, callback);
+
+  var flags = document.getElementById("getApplicationInfo_Flags").value;
+	if (flags) {
+		var flag_value;
+		if (flags == "AppLauncher.FLAG_GET_META_DATA") {
+			flag_value = AppLauncher.FLAG_GET_META_DATA;
+    }
+		else if(flags == "AppLauncher.FLAG_SHARED_LIBRARY_FILES") {
+			flag_value = AppLauncher.FLAG_SHARED_LIBRARY_FILES;
+    }
+		else if(flags == "AppLauncher.FLAG_GET_UNINSTALLED_PACKAGES") {
+			flag_value = AppLauncher.FLAG_GET_UNINSTALLED_PACKAGES;
+    }
+		else {
+			flag_value = flags;
+    }
+
+		AppLauncher.getApplicationInfo(document.getElementById("getApplicationInfo_PackageName").value, flag_value, callback);
+	}
+	else {
+		AppLauncher.getApplicationInfo(document.getElementById("getApplicationInfo_PackageName").value, callback);
+  }
 }
 </script>
 <style>
@@ -128,7 +150,8 @@ table#t01 th	{
     <td>launchApp</td>
     <td>단말에 설치되어 있는 앱을 실행한다.</td>
     <td>
-      AppID: <input type="text" id="launchApp_AppId" style="font-size : 15pt; width:95%"><br><br>
+      PackageName: <input type="text" id="launchApp_PackageName" value="com.google.android.youtube" style="font-size : 15pt; width:95%"><br>
+      ActivityName: <input type="text" id="launchApp_ActivityName" value="com.google.android.youtube.app.honeycomb.Shell$HomeActivity" style="font-size : 15pt; width:95%"><br><br>
       <button type="button" onclick="launchApp()" style="font-size: 15pt" >앱 실행</button>
     </td>
   </tr>
@@ -136,7 +159,7 @@ table#t01 th	{
     <td>removeApp</td>
     <td>단말에 설치되어 있는 앱을 삭제한다.</td>
     <td>
-      AppID: <input type="text" id="removeApp_AppId" style="font-size : 15pt; width:95%"><br><br>
+      PackageName: <input type="text" id="removeApp_PackageName" value="com.google.android.youtube" style="font-size : 15pt; width:95%"><br><br>
       <button type="button" onclick="removeApp()" style="font-size: 15pt" >앱 삭제</button>
     </td>
   </tr>
@@ -144,7 +167,8 @@ table#t01 th	{
     <td>getApplicationInfo</td>
     <td>특정 앱의 정보를 조회한다.</td>
     <td>
-      AppId: <input type="text" id="getApplicationInfo_AppId" style="font-size : 15pt; width:95%"><br><br>
+      PackageName: <input type="text" id="getApplicationInfo_PackageName" value="com.google.android.youtube" style="font-size : 15pt; width:95%"><br>
+      Flags: <input type="text" id="getApplicationInfo_Flags" style="font-size : 15pt; width: 95%;"><br><br>
       <button type="button" onclick="getApplicationInfo()" style="font-size: 15pt" >앱 정보 조회</button>
     </td>
   </tr>
