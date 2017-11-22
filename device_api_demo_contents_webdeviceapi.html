@@ -1,0 +1,1519 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript" src="./discovery.js"></script>
+
+<script type="text/javascript">
+
+var connected = false;
+var socket;
+
+var serverList = new Array();
+
+var myIpAddrs;
+function setServerUrl(item, ipAddrs) {
+  console.log("item " + item + ", " + ipAddrs);
+  if (ipAddrs != null) myIpAddrs = ipAddrs;
+  if (serverList.indexOf(item) < 0) {
+    serverList.push(item);
+    var serverListSelect = document.getElementById("serverListSelect");
+    var opt = document.createElement('option');
+    opt.value = item;
+    if (item == myIpAddrs) {
+      opt.innerHTML = "Local";
+    } else {
+      opt.innerHTML = item;  
+    }
+    serverListSelect.appendChild(opt);
+  }
+}
+  
+function makeAuthorize() {
+  var text = "";
+  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+  for (var i = 0; i < 5; i++)
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+  return text + Date.now();
+}
+  
+function connectServer() {
+  if (!connected) {
+    var url = document.getElementById("serverListSelect").value;
+    console.log("server url : " + url);
+    socket = new WebSocket(url);
+    socket.onopen = function(event) {
+      console.log("connected");
+      document.getElementById("btn_connect_server").value = "Connected";
+      document.getElementById("btn_connect_server").disabled = true;
+      connected = true;
+      socket.onmessage = handleMessage;
+      document.getElementById("requestId").value = makeAuthorize();
+      document.getElementById("btn_send_authorize").disabled=false;
+    }
+    socket.onclose = function(event) {
+      console.log("onClose " + event.code);
+      document.getElementById("btn_connect_server").value = "Connect";
+      document.getElementById("btn_connect_server").disabled = false;
+      document.getElementById("btn_send_authorize").disabled=true;
+      document.getElementById("requestId").value = "";
+      connected = false;
+      socket.onmessage = function(event) {
+        console.log("onmessage : " + event.data);
+      }
+    }
+  }
+}
+
+function send_invalid_message() {
+  if (connected) {
+    var sendData = "testing invalid message";
+    console.log("send message : " + sendData);
+    socket.send(sendData);
+  }
+}
+
+function send_authorize() {
+  if (connected) {
+    var msg = {
+      action: "authorize",
+      requestId: document.getElementById("requestId").value
+    };
+    console.log("send authorize msg : " + JSON.stringify(msg));
+
+    // Send the msg object as a JSON-formatted string.
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function unsubscribe_path_change() {
+  var select = document.getElementById("unsubscribe_path_type");
+  var path = select.value;
+  var unsubsribe_id = document.getElementById("unsubscribe_id_container");
+  if (path == "unsubscribeAll") {
+    unsubsribe_id.style.visibility = 'hidden';
+  } else {
+    unsubsribe_id.style.visibility = 'visible';
+  }
+}
+
+function send_unsubscribe() {
+  if (connected) {
+    var select = document.getElementById("unsubscribe_path_type");
+    var path = select.value;
+    var msg;
+    var unsubscribe_id = document.getElementById("unsubscribe_id");
+    if (path == "unsubscribe") {
+      msg = {
+        action: "unsubscribe",
+        requestId: document.getElementById("requestId").value,
+        subscriptionId: unsubscribe_id.value,
+      };
+    } else if(path == "unsubscribeAll") {
+      msg = {
+        action: "unsubscribeAll",
+        requestId: document.getElementById("requestId").value,
+        path: path,
+      };
+    }
+    console.log("send get msg: " + JSON.stringify(msg));
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function applauncher_function(path, appId) {
+  if (connected) {
+    console.log("path : " + path + ", " + appId);
+    var msg;
+    var extra = document.getElementById("applauncher_extra");
+    if (path == "getapplist") {
+      msg = {
+        action: "get",
+        requestId: document.getElementById("requestId").value,
+        path: "highweb.applauncher." + path
+      };
+    } else if(path == "getapplicationinfo") {
+      console.log("extra value not empty");
+      var extraValue = {
+        appId: appId
+      };
+      msg = {
+        action: "get",
+        requestId: document.getElementById("requestId").value,
+        path: "highweb.applauncher." + path,
+        extra: extraValue
+      };
+    } else {
+      var extraValue = {
+        appId: appId
+      };
+      msg = {
+        action: "set",
+        requestId: document.getElementById("requestId").value,
+        path: "highweb.applauncher." + path,
+        extra: extraValue
+      };
+    }
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function createAppResultIcon(appList) {
+  var result_area = document.getElementById("applauncher_result_tr_list");
+  result_area.style="";
+  if (appList) {
+    var htmlString = "";
+    for(var i in appList) {
+      htmlString += "<div style='width:300px;display:flex;flex-direction:column;align-items:center'><img height='180px' width='180px' src='" +
+                    appList[i].iconUrl + "' onclick=\"applauncher_function('getapplicationinfo', '" + appList[i].id + "')\"></a>" + 
+                    "<div style='text-align:center'><h4>" + appList[i].name + "</h4><p><h10>appId : " + appList[i].id + "</h10></div></div>";
+    }
+    var result_area = document.getElementById("applauncher_result_area_list");
+    result_area.innerHTML = htmlString;
+  } else {
+    console.log("Server에 설치된 앱이 없습니다");
+  }
+}
+
+function createAppResultInfo(appInfo) {
+  var result_area = document.getElementById("applauncher_result_tr_info");
+  result_area.style="";
+  if (appInfo) {
+    var htmlString = "";
+    htmlString += "<div style='flex:1;display:flex;flex-direction:row;align-items:center'><img height='180px' width='180px' src='" +
+                    appInfo.iconUrl + "' onclick=\"applauncher_function('launchapp', '" + appInfo.id + "')\"></a>" + 
+                    "<div style='margin-left:10px'><h4>" + appInfo.name + "</h4><p><h10>appId : " + appInfo.id + 
+                    "<p>url : " + appInfo.url + "<p>version : " + appInfo.version + "</h10></div><div style='margin-left:50px'>" +
+                    "<input type='button' value='Delete App' style='font-size: 15pt' onclick=\"applauncher_function('removeapp', '" + 
+                    appInfo.id + "')\"></input></div>";
+    var result_area = document.getElementById("applauncher_result_area_info");
+    result_area.innerHTML = htmlString;
+  } else {
+    console.log("Server에 설치된 앱이 없습니다");
+  }
+}
+
+
+function applauncher_result_clear(id) {
+  if (id == "list") {
+    var result_area_td_list = document.getElementById("applauncher_result_tr_list");
+    result_area_td_list.style="display:none";
+    var result_area = document.getElementById("applauncher_result_area_list");
+    result_area.innerHTML = "";
+  } else if(id == "info") {
+    var result_area_td_info = document.getElementById("applauncher_result_tr_info");
+    result_area_td_info.style="display:none";
+    var result_area = document.getElementById("applauncher_result_area_info");
+    result_area.innerHTML = "";
+  }
+}
+
+function devicesound_function() {
+  if (connected) {
+    var select = document.getElementById("devicesound_path_type");
+    var path = select.value;
+    if(path == "systeminfo") {
+      return;
+    }
+    var group = select.options[select.selectedIndex].parentNode.label;
+    var msg;
+    if (path == "load") {
+      msg = {
+        action: "subscribe",
+        requestId: document.getElementById("requestId").value,
+        path: "highweb.systeminfo." + group + "." + path
+      };
+    } else {
+      msg = {
+        action: "get",
+        requestId: document.getElementById("requestId").value,
+        path: "highweb.systeminfo." + group + "." + path,
+      };
+    }
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+function devicesound_function() {
+  if (connected) {
+    var select = document.getElementById("devicesound_path_type");
+    var path = select.value;
+    if(path == "systeminfo") {
+      return;
+    }
+    var group = select.options[select.selectedIndex].parentNode.label;
+    var msg = {
+      action: "get",
+      requestId: document.getElementById("requestId").value,
+      path: "highweb.systeminfo." + group + "." + path,
+    };
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function devicestorage_function() {
+  if (connected) {
+    var select = document.getElementById("devicestorage_path_type");
+    var path = select.value;
+    if(path == "systeminfo") {
+      return;
+    }
+    var group = select.options[select.selectedIndex].parentNode.label;
+    var msg;
+    var msg = {
+      action: "get",
+      requestId: document.getElementById("requestId").value,
+      path: "highweb.systeminfo." + group + "." + path,
+    };
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function devicecpu_function() {
+  if (connected) {
+    lastCpuLoadDrawChartTime = getCurrentTimeMillis();
+    load_chart();
+    var select = document.getElementById("devicecpu_path_type");
+    var path = select.value;
+    var group = select.options[select.selectedIndex].parentNode.label;
+    var msg;
+    var interval = document.getElementById("devicecpu_filter_interval");
+    var minValue = document.getElementById("devicecpu_filter_min_value");
+    var maxValue = document.getElementById("devicecpu_filter_max_value");
+    var minChangeValue = document.getElementById("devicecpu_filter_min_change_value");
+    var filter = {
+      interval: interval.value,
+      range: {
+        above: minValue.value,
+        below: maxValue.value,
+      },
+      minChange: minChangeValue.value,
+    };
+    var msg = {
+      action: "subscribe",
+      requestId: document.getElementById("requestId").value,
+      path: "highweb.systeminfo." + group + "." + path,
+      filters: filter,
+    };
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function calendar_path_change() {
+  var select = document.getElementById("calendar_path_type");
+  var path = select.value;
+  var id = document.getElementById("calendar_id_container");
+  var description = document.getElementById("calendar_description_container");
+  var location = document.getElementById("calendar_location_container");
+  var summary = document.getElementById("calendar_summary_container");
+  var startDate = document.getElementById("calendar_startDate_container");
+  var endDate = document.getElementById("calendar_endDate_container");
+  var multiple = document.getElementById("calendar_multiple_container");
+  if (path == "findevent") {
+    id.style.visibility = 'hidden';
+    description.style.visibility = 'hidden';
+    location.style.visibility = 'hidden';
+    summary.style.visibility = 'hidden';
+    startDate.style.visibility = 'visible';
+    endDate.style.visibility = 'visible';
+    multiple.style.visibility = 'visible';
+  } else if(path == "addevent") {
+    id.style.visibility = 'hidden';
+    description.style.visibility = 'visible';
+    location.style.visibility = 'visible';
+    summary.style.visibility = 'visible';
+    startDate.style.visibility = 'visible';
+    endDate.style.visibility = 'visible';
+    multiple.style.visibility = 'hidden';
+  } else if(path == "updateevent") {
+    id.style.visibility = 'visible';
+    description.style.visibility = 'visible';
+    location.style.visibility = 'visible';
+    summary.style.visibility = 'visible';
+    startDate.style.visibility = 'visible';
+    endDate.style.visibility = 'visible';
+    multiple.style.visibility = 'hidden';
+  } else if(path == "deleteevent") {
+    id.style.visibility = 'visible';
+    description.style.visibility = 'hidden';
+    location.style.visibility = 'hidden';
+    summary.style.visibility = 'hidden';
+    startDate.style.visibility = 'hidden';
+    endDate.style.visibility = 'hidden';
+    multiple.style.visibility = 'hidden';
+  }
+}
+
+function makeMillis(date, time) {
+  var date = new Date(date + " " + time);
+  var milliseconds = date.getTime();
+
+  return milliseconds;
+}
+
+function calendar_function() {
+  if (connected) {
+    var select = document.getElementById("calendar_path_type");
+    var path = select.value;
+    var group = select.options[select.selectedIndex].parentNode.label;
+    if (group != "calendar") {
+      return;
+    }
+    var msg;
+    if (path == "findevent") {
+      var startDate = document.getElementById("calendar_startDate");
+      var endDate = document.getElementById("calendar_endDate");
+      var multiple = document.getElementById("calendar_multiple");
+      var startTime = document.getElementById("calendar_startTime");
+      var endTime = document.getElementById("calendar_endTime");
+      var startDateMillis = makeMillis(startDate.value, startTime.value);
+      var endDateMillis = makeMillis(endDate.value, endTime.value);
+      var var_CalendarEventFilter = {
+        startBefore: null,
+        startAfter: startDateMillis,
+        endBefore: endDateMillis,
+        endAfter: null
+      };
+      var var_CalendarFindOptions = {
+        filter: var_CalendarEventFilter,
+        multiple: multiple.value,
+      };
+      var extraValue = {
+        options: var_CalendarFindOptions
+      };
+      msg = {
+        action: "get",
+        requestId: document.getElementById("requestId").value,
+        path: "highweb." + group + "." + path,
+        extra: extraValue
+      };
+    } else if(path == "addevent" || path == "updateevent") {
+      var startDate = document.getElementById("calendar_startDate");
+      var endDate = document.getElementById("calendar_endDate");
+      var startTime = document.getElementById("calendar_startTime");
+      var endTime = document.getElementById("calendar_endTime");
+      var startDateMillis = makeMillis(startDate.value, startTime.value);
+      var endDateMillis = makeMillis(endDate.value, endTime.value);
+      if (!startDateMillis) {
+        startDateMillis = 0;
+      }
+      if (!endDateMillis) {
+        endDateMillis = 0;
+      }
+      var description = document.getElementById("calendar_description");
+      var location = document.getElementById("calendar_location");
+      var summary = document.getElementById("calendar_summary");
+
+      var id = document.getElementById("calendar_id");
+      var var_id;
+      if (!id.disabled) {
+        var_id = id.value;
+      }
+      var calendarEvent = {
+        id: var_id,
+        description: description.value,
+        location: location.value,
+        summary: summary.value,
+        start: startDateMillis,
+        end: endDateMillis
+      };
+      var extraValue = {
+        event: calendarEvent
+      };
+      msg = {
+        action: "set",
+        requestId: document.getElementById("requestId").value,
+        path: "highweb." + group + "." + path,
+        extra: extraValue
+      };
+    } else if(path == "deleteevent") {
+      var id = document.getElementById("calendar_id");
+      var extraValue = {
+        id: id.value
+      };
+      msg = {
+        action: "set",
+        requestId: document.getElementById("requestId").value,
+        path: "highweb." + group + "." + path,
+        extra: extraValue
+      };
+    }
+
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function contact_path_change() {
+  var select = document.getElementById("contact_path_type");
+  var path = select.value;
+  var find_or_delete = document.getElementById("contact_find_or_delete_container");
+  var add_or_update = document.getElementById("contact_add_or_update_container");
+  var contact_id_container = document.getElementById("contact_id_container");
+  if (path == "findcontact" || path == "deletecontact") {
+    find_or_delete.style.visibility = 'visible';
+    add_or_update.style.visibility = 'hidden';
+    contact_id_container.style.visibility = 'hidden';
+  } else if(path == "addcontact" || path == "updatecontact") {
+    find_or_delete.style.visibility = 'hidden';
+    add_or_update.style.visibility = 'visible';
+    if (path == "addcontact") {
+      contact_id_container.style.visibility = 'hidden';
+    } else {
+      contact_id_container.style.visibility = 'visible';
+    }
+  }
+}
+
+function contact_function() {
+  if (connected) {
+    var select = document.getElementById("contact_path_type");
+    var path = select.value;
+    var group = select.options[select.selectedIndex].parentNode.label;
+    if (group != "contact") {
+      return;
+    }
+    var msg;
+    if (path == "findcontact" || path == "deletecontact") {
+      var target = document.getElementById("contact_target");
+      var max_number = document.getElementById("contact_max_number");
+      var condition = document.getElementById("contact_condition");
+      var action = "get";
+      if (path == "deletecontact") {
+        action = "set"
+      }
+      var var_findoptions = {
+        target: target.value,
+        maxItem: max_number.value,
+        condition: condition.value
+      };
+      var extraValue = {
+        findOptions: var_findoptions
+      };
+      msg = {
+        action: action,
+        requestId: document.getElementById("requestId").value,
+        path: "highweb." + group + "." + path,
+        extra: extraValue
+      };
+    } else if(path == "addcontact" || path == "updatecontact") {
+      var id = document.getElementById("contact_id");
+      var name = document.getElementById("contact_name");
+      var phone = document.getElementById("contact_phone");
+      var email = document.getElementById("contact_email");
+      var address = document.getElementById("contact_address");
+      var category = document.getElementById("contact_category");
+      var add_structured_name = document.getElementById("contact_add_structured_name");
+      var family = document.getElementById("contact_family");
+      var given = document.getElementById("contact_given");
+      var middle = document.getElementById("contact_middle");
+      var prefix = document.getElementById("contact_prefix");
+      var suffix = document.getElementById("contact_suffix");
+      var add_structured_address = document.getElementById("contact_add_structured_address");
+      var type = document.getElementById("contact_type");
+      var street = document.getElementById("contact_street");
+      var locality = document.getElementById("contact_locality");
+      var region = document.getElementById("contact_region");
+      var postal = document.getElementById("contact_postal");
+      var country = document.getElementById("contact_country");
+      var structuredAddress = {};
+      if (add_structured_address.checked) {
+        structuredAddress = {
+          type: type.value,
+          streetAddress: street.value,
+      		locality: locality.value,
+      		region: region.value,
+      		postalCode: postal.value,
+      		country: country.value
+        };
+      }
+      var structuredName = {};
+      if (add_structured_name.checked) {
+        structuredName = {
+          familyName: family.value,
+      		givenName: given.value,
+      		middleName: middle.value,
+      		honorificPrefix: prefix.value,
+      		honorificSuffix: suffix.value
+        };
+      }
+      var idValue;
+      if (path == "updatecontact") {
+        idValue = id.value;
+      }
+      var contactObject = {
+        id: idValue,
+        displayName: name.value,
+        phoneNumber: phone.value,
+        emails: email.value,
+        address: address.value,
+        categories: category.value,
+        structuredAddress: structuredAddress,
+        structuredName: structuredName
+      };
+      var extraValue = {
+        contact: contactObject
+      };
+      msg = {
+        action: "set",
+        requestId: document.getElementById("requestId").value,
+        path: "highweb." + group + "." + path,
+        extra: extraValue
+      };
+    }
+
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function messaging_path_change() {
+  var select = document.getElementById("messaging_path_type");
+  var path = select.value;
+  var send = document.getElementById("messaging_send_container");
+  var find = document.getElementById("messaging_find_container");
+  var onmessage = document.getElementById("messaging_onmessage_container");
+  if (path == "sendmessage") {
+    send.style.visibility = 'visible';
+    find.style.visibility = 'hidden';
+    onmessage.style.visibility = 'hidden';
+  } else if(path == "findmessage") {
+    send.style.visibility = 'hidden';
+    find.style.visibility = 'visible';
+    onmessage.style.visibility = 'hidden';
+  } else if(path == "onmessagereceived"){
+    send.style.visibility = 'hidden';
+    find.style.visibility = 'hidden';
+    onmessage.style.visibility = 'visible';
+  }
+}
+
+function messaging_function() {
+  if (connected) {
+    var select = document.getElementById("messaging_path_type");
+    var path = select.value;
+    var group = select.options[select.selectedIndex].parentNode.label;
+    var msg;
+    var action;
+    var extra;
+    if (path == "onmessagereceived") {
+      var interval = document.getElementById("messaging_onmessage_interval");
+      msg = {
+        action: "subscribe",
+        requestId: document.getElementById("requestId").value,
+        path: "highweb." + group + "." + path,
+        filters: {
+          interval: interval.value,
+        },
+      };
+    } else {
+      if (path == "findmessage") {
+        action = "get";
+        var target = document.getElementById("messaging_find_target");
+        var max_number = document.getElementById("messaging_find_max_number");
+        var condition = document.getElementById("messaging_find_condition");
+        var findOptions = {
+          target: target.value,
+          maxItem: max_number.value,
+          condition: condition.value,
+        };
+        extra = {
+          findOptions: findOptions,
+        };
+      } else if(path == "sendmessage") {
+        action = "set";
+        var type = document.getElementById("messaging_send_type");
+        var to = document.getElementById("messaging_send_to");
+        var body = document.getElementById("messaging_send_body");
+        var message = {
+          type: type.value,
+          to: to.value,
+          body: body.value
+        };
+        extra = {
+          message: message
+        };
+      }
+      msg = {
+        action: action,
+        requestId: document.getElementById("requestId").value,
+        path: "highweb." + group + "." + path,
+        extra: extra
+      };
+    }
+
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function gallery_path_change() {
+  var select = document.getElementById("gallery_path_type");
+  var path = select.value;
+  var findOption = document.getElementById("gallery_find_container");
+  var id = document.getElementById("gallery_obj_id_container");
+  var canvas = document.getElementById("gallery_canvas");
+  if (path == "findmedia") {
+    findOption.style.visibility = "visible";
+    id.style.visibility = 'hidden';
+    canvas.style.visibility = 'hidden';
+  } else if(path == "getmedia" || path == "deletemedia") {
+    findOption.style.visibility = "hidden";
+    id.style.visibility = 'visible';
+    canvas.style.visibility = 'visible';
+  } else {
+    findOption.style.visibility = "hidden";
+    id.style.visibility = 'hidden';
+    canvas.style.visibility = 'hidden';
+  }
+}
+
+function devicegallery_function() {
+  if (connected) {
+    var select = document.getElementById("gallery_path_type");
+    var path = select.value;
+    var group = select.options[select.selectedIndex].parentNode.label;
+    var msg;
+    var action;
+    var extra;
+    if (path == "findmedia") {
+      action = "get";
+      var findtype = document.getElementById("gallery_find_type").value;
+      var optiontype = document.getElementById("gallery_find_option_type").value;
+      var optiondescription = document.getElementById("gallery_find_option_description").value;
+      var optionid = document.getElementById("gallery_find_option_id").value;
+      var optiontitle = document.getElementById("gallery_find_option_title").value;
+      var optionfilename = document.getElementById("gallery_find_option_filename").value;
+      var optionfilesize = document.getElementById("gallery_find_option_filesize").value;
+      var optioncreatedDate = document.getElementById("gallery_find_option_createdDate").value;
+      var createdDateMills = new Date(optioncreatedDate).getTime();
+      var maxitem = document.getElementById("gallery_find_maxItem").value;
+      var findObject = {
+        type: optiontype,
+        description: optiondescription,
+        id: optionid,
+        title: optiontitle,
+        fileName: optionfilename,
+        fileSize: optionfilesize,
+        createdDate: createdDateMills,
+        content: null,
+      };
+      var findOptions = {
+        operation: findtype,
+        findObject: findObject,
+        maxItem: maxitem,
+      };
+      extra = {
+        findOptions: findOptions,
+      };
+    } else if (path == "getmedia") {
+      action = "get";
+      var input_id = document.getElementById("gallery_obj_id");
+      var selectedObject = galleryList.get(input_id.value);
+      if (selectedObject) {
+        extra = {
+          media: selectedObject,
+        };
+      }
+    } else if (path == "deletemedia") {
+      action = "set";
+      var input_id = document.getElementById("gallery_obj_id");
+      var selectedObject = galleryList.get(input_id.value);
+      if (selectedObject) {
+        extra = {
+          media: selectedObject,
+        };
+      }
+    } else {
+      return;
+    }
+    msg = {
+      action: action,
+      requestId: document.getElementById("requestId").value,
+      path: "highweb." + group + "." + path,
+      extra: extra
+    };
+
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function devicesensor_function() {
+  if (connected) {
+    var select = document.getElementById("devicesensor_path_type");
+    var path = select.value;
+    var group = select.options[select.selectedIndex].parentNode.label;
+    var msg;
+    var interval = document.getElementById("devicesensor_filter_interval");
+    var minValue = document.getElementById("devicesensor_filter_min_value");
+    var maxValue = document.getElementById("devicesensor_filter_max_value");
+    var minChangeValue = document.getElementById("devicesensor_filter_min_change_value");
+    var filter = {
+      interval: interval.value,
+      range: {
+        above: minValue.value,
+        below: maxValue.value,
+      },
+      minChange: minChangeValue.value,
+    };
+    var msg = {
+      action: "subscribe",
+      requestId: document.getElementById("requestId").value,
+      path: "highweb." + group + "." + path,
+      filters: filter,
+    };
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+var getmediaResult;
+function handleMessage(event) {
+  var result = JSON.parse(event.data);
+  switch(result.action) {
+    case "unsubscribe": {
+      console.log("unsubscribe " + result.subscriptionId);
+      cpuSubscribeList.splice(cpuSubscribeList.indexOf(result.subscriptionId), 1);
+      if (cpuSubscribeList.length == 0) {
+        clearChart();
+      }
+      break;
+    }
+    case "unsubscribeAll": {
+      console.log("unsubscribeAll");
+      cpuSubscribeList.splice(0, cpuSubscribeList.length);
+      clearChart();
+      break;
+    }
+    case "authorize": {
+      console.log("authorize");
+      if (result.error == undefined) {
+        document.getElementById("btn_send_authorize").disabled = true;
+      } else {
+        alert("authorize error : " + result.error.number + " : " + result.error.message);
+      }
+      break;
+    }
+    default: {
+      switch(result.path) {
+        case "highweb.devicegallery.getmedia" : {
+          getmediaResult = result;
+          console.log("result.error : " + result.error);
+          if (typeof result.error != 'undefined') {
+            console.log("receive data : " + event.data);
+            return;
+          }
+          getmediaResult = result;
+          var image = new Image();
+          image.src="data:" + getmediaResult.value.storageList[0].type +
+                    ";base64,"+getmediaResult.value.storageList[0].content.blob;
+          image.onload = function () {
+            var canvas = document.getElementById("gallery_canvas");
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(this, 0, 0, 400, 360);
+          }
+          return;
+          break;
+        }
+        case "highweb.devicegallery.findmedia" : {
+          saveGalleryList(event.data);
+          break;
+        }
+        case "highweb.applauncher.getapplist" : {
+          if (result.error == undefined && result.value.resultCode == 0) {
+            createAppResultIcon(result.value.appList);
+            return;
+          }
+          break;
+        }
+        case "highweb.applauncher.getapplicationinfo" : {
+          if (result.error == undefined && result.value.resultCode == 0) {
+            createAppResultInfo(result.value.appInfo);
+            return;
+          }
+          break;
+        }
+        case "highweb.systeminfo.devicecpu.load" : {
+          if (result.error == undefined && result.value.resultCode == 0) {
+            if (!cpuSubscribeList.find(function(subscriptionId) {
+              return subscriptionId == result.subscriptionId}
+              )) {
+              cpuSubscribeList.push(result.subscriptionId);
+              var devicecpu_result_tr = document.getElementById("devicecpu_result_tr");
+              devicecpu_result_tr.style.display = "";
+              console.log("add " + result.subscriptionId + ", length : " + cpuSubscribeList.length);
+            }
+            load(result.value);
+            return;
+          } else {
+            if (cpuSubscribeList.length == 0) {
+              clearChart();
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+  console.log("receive data : " + event.data);
+}
+
+var galleryList = new Map();
+function saveGalleryList(value) {
+  var result = JSON.parse(value);
+  var listString = result.value;
+  listString.storageList.forEach(function(object) {
+    galleryList.set(object.id, object);
+  });
+}
+
+function load_chart() {
+  google.charts.load('current', {'packages':['corechart', 'gauge']});
+  google.charts.setOnLoadCallback(load);
+  console.log("load_chart, wait onLoadCallback...");
+}
+
+function getCurrentTimeMillis() {
+  var date = new Date();
+  var milliseconds = date.getTime();
+
+  return milliseconds;
+}
+
+var cpuSubscribeList = new Array();
+var graphChartData =  [ ['Time', 'CPU Usage'] ];
+var lastCPUUsageData;
+var graphChart = null;
+var gaugeChart = null;
+var lastCpuLoadDrawChartTime;
+
+function drawChart() {
+  // graph chart
+  {
+    var data = google.visualization.arrayToDataTable(graphChartData);
+    var options = {
+      title: 'CPU Usage',
+      curveType: 'function',
+      legend: { position: 'bottom' }
+    };
+
+    if(graphChart == null) {
+        graphChart = new google.visualization.LineChart(document.getElementById('curve_chart'));
+    }
+
+    // graphChart.clearChart();
+    graphChart.draw(data, options);
+  }
+  // gauge chart
+  {
+    var data = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['CPU', lastCPUUsageData],
+        ]);
+    var options = {
+        width: 500, height: 500,
+        redFrom: 90, redTo: 100,
+        yellowFrom:75, yellowTo: 90,
+        minorTicks: 5
+      };
+
+    if(gaugeChart == null) {
+      gaugeChart = new google.visualization.Gauge(document.getElementById('chart_div'));
+    }
+
+    //gaugeChart.clearChart();
+    gaugeChart.draw(data, options);
+  }
+}
+
+function load(event) {
+  if (event.load < 0) {
+    return;
+  }
+  var willDrawChart = false;
+  var deltaDrawChart = getCurrentTimeMillis() - lastCpuLoadDrawChartTime;
+  if(deltaDrawChart > 1000) {
+    willDrawChart = true;
+    lastCpuLoadDrawChartTime = getCurrentTimeMillis();
+    var now = new Date();
+    graphChartData.push([ now.getHours().toString() + now.getMinutes().toString() + now.getSeconds().toString(), event.load * 100 ]);
+  }
+
+  if(graphChartData.length > 10) {
+    var indexToRemove = 1;
+    var numberToRemove = 1;
+
+    graphChartData.splice(indexToRemove, numberToRemove);
+  }
+
+  lastCPUUsageData = Math.round(event.load * 100);
+
+  if(willDrawChart) {
+    setTimeout( drawChart(), 0 );
+  }
+}
+
+function clearChart() {
+  console.log("clearChart");
+  gaugeChart.clearChart();
+  graphChart.clearChart();
+  lastCPUUsageData = 0;
+  gaugeChart = null;
+  graphChart = null;
+  graphChartData.splice(0, graphChartData.length);
+  var devicecpu_result_tr = document.getElementById("devicecpu_result_tr");
+  devicecpu_result_tr.style = "display:none";
+}
+
+</script>
+<style>
+.console-log-div {
+  width: 95% !important;
+  background-color: #efefef;
+}
+#log {
+  margin: 10px 0px;
+  display: block;
+  white-space: pre;
+  font-family: monospace;
+}
+#log:before {
+  content: "log javascript:";
+  font-style: italic;
+  color: #555;
+}
+</style>
+<style>
+table {
+    width:100%;
+}
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 5px;
+    text-align: left;
+}
+table#t01 tr:nth-child(even) {
+    background-color: #eee;
+}
+table#t01 tr:nth-child(odd) {
+   background-color:#fff;
+}
+table#t01 th	{
+    background-color: black;
+    color: white;
+}
+</style>
+</head>
+<body onload="findDiscovery(setServerUrl)">
+<h1 style="font-family: verdana; text-align: center">Web DeviceAPI</h1>
+<table id="t01">
+  <tr>
+    <th width="20%">API</th>
+    <th width="30%">Description</th>
+    <th width="50%">DEMO</th>
+  </tr>
+  <tr>
+    <td></td>
+    <td>connect server</td>
+    <td>
+      <!-- <input id="server_ip" type="text" value="192.168.70.5:20000"></input> -->
+      <select id="serverListSelect">
+      </select>
+      <input id="btn_connect_server" type="button" value="Connect" style="font-size: 15pt" onclick="connectServer();"></input>
+    </td>
+  </tr>
+  <tr>
+    <td>Authorize</td>
+    <td>Authorize 진행</td>
+    <td>
+      <input id="requestId" type="text" value="" readonly=true></input>
+      <input id="btn_send_authorize" type="button" value="Send Message" style="font-size: 15pt" onclick="send_authorize();" disabled=true></input>
+    </td>
+  </tr>
+  <tr>
+    <td>applauncher</td>
+    <td>applauncher action 수행</td>
+    <td>
+      <button type="button" onclick="applauncher_function('getapplist')" style="font-size: 15pt">Get Server PWA List</button>
+    </td>
+  </tr>
+  <tr id="applauncher_result_tr_info" style="display:none">
+    <td>
+      <button type="button" onclick="applauncher_result_clear('info')" style="font-size: 10pt">result clear</button>
+    </td>
+    <td  colspan="2">
+      <div id="applauncher_result_area_info" style="display:flex;flex-direction:row;flex-wrap:wrap;">
+      </div>
+    </td>
+  </tr>
+  <tr id="applauncher_result_tr_list" style="display:none">
+    <td>
+      <button type="button" onclick="applauncher_result_clear('list')" style="font-size: 10pt">result clear</button>
+    </td>
+    <td  colspan="2">
+      <div id="applauncher_result_area_list" style="display:flex;flex-direction:row;flex-wrap:wrap;">
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td>DeviceCpu</td>
+    <td>Systeminfo-DeviceCpu action 수행</td>
+    <td>
+      path
+      <select id="devicecpu_path_type" name="target">
+        <option value="systeminfo" selected="true">--systeminfo--</option>
+        <optgroup label="devicecpu" value="devicecpu">
+  				<option value="load">load</option>
+        </optgroup>
+			</select><br>
+      Interval: <input type="number" id="devicecpu_filter_interval" value=0><br>
+      Range : <input type="number" id="devicecpu_filter_min_value" value=0><input type="number" id="devicecpu_filter_max_value" value=0><br>
+      Min Change Value : <input type="number" id="devicecpu_filter_min_change_value" value="0"><br>
+      <br>
+      <button type="button" onclick="devicecpu_function()" style="font-size: 15pt">Systeminfo request</button>
+    </td>
+  </tr>
+  <tr id="devicecpu_result_tr" style="display:none">
+    <td  colspan="3">
+      <div style="display:flex;flex-direction:row;align-items:center">
+      <div id="curve_chart" style="margin:0 auto; flex:1"></div><br>
+      <div id="chart_div" style="margin:0 auto; width:500px"></div>
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td>Unsubscribe</td>
+    <td>Unsubscribe 진행</td>
+    <td>
+      <select id="unsubscribe_path_type" name="target" onchange="unsubscribe_path_change()">
+        <option value="test" selected="true">--------</option>
+        <option value="unsubscribe">unsubscribe</option>
+				<option value="unsubscribeAll">unsubscribeAll</option>
+			</select>
+      <div id="unsubscribe_id_container">
+        <input id="unsubscribe_id" type="text" value=""></input>
+      </div>
+      <input id="btn_unsubscribe" type="button" value="Send Message" style="font-size: 15pt" onclick="send_unsubscribe();"></input>
+    </td>
+  </tr>
+  <tr>
+    <td>test error message</td>
+    <td>잘못된 메세지 전달</td>
+    <td>
+      <input id="btn_send_invalid_message" type="button" value="Send Message" style="font-size: 15pt" onclick="send_invalid_message();"></input>
+    </td>
+  </tr>
+  <tr>
+    <td>DeviceSound</td>
+    <td>Systeminfo-Devicesound action 수행</td>
+    <td>
+      path
+      <select id="devicesound_path_type" name="target">
+        <option value="systeminfo" selected="true">--systeminfo--</option>
+        <optgroup label="devicesound" value="devicesound">
+  				<option value="outputdevicetype">outputdevicetype</option>
+          <option value="devicevolume">devicevolume</option>
+        </optgroup>
+			</select>
+      <br>
+      <button type="button" onclick="devicesound_function()" style="font-size: 15pt">Systeminfo request</button>
+    </td>
+  </tr>
+  <tr>
+    <td>DeviceStorage</td>
+    <td>Systeminfo-DeviceStorage action 수행</td>
+    <td>
+      path
+      <select id="devicestorage_path_type" name="target">
+        <option value="systeminfo" selected="true">--systeminfo--</option>
+        <optgroup label="devicestorage" value="devicestorage">
+  				<option value="getdevicestorage">getdevicestorage</option>
+        </optgroup>
+			</select>
+      <br>
+      <button type="button" onclick="devicestorage_function()" style="font-size: 15pt">Systeminfo request</button>
+    </td>
+  </tr>
+  <tr>
+    <td>Calendar</td>
+    <td>Calendar action 수행</td>
+    <td>
+      path
+      <select id="calendar_path_type" name="target" onchange="calendar_path_change()">
+        <option value="test" selected="true">--------</option>
+        <optgroup label="calendar" value="calendar">
+  				<option value="findevent">findevent</option>
+          <option value="addevent">addevent</option>
+          <option value="updateevent">updateevent</option>
+          <option value="deleteevent">deleteevent</option>
+        </optgroup>
+			</select>
+      <br>
+      <div id="calendar_id_container">
+        이벤트ID: <input type="number" id="calendar_id"><br>
+      </div>
+      <div id="calendar_description_container">
+        설명: <input type="text" id="calendar_description" value="일정 설명 입니다."><br>
+      </div>
+      <div id="calendar_location_container">
+        장소: <input type="text" id="calendar_location" value="일정 장소 입니다."><br>
+      </div>
+      <div id="calendar_summary_container">
+        제목: <input type="text" id="calendar_summary" value="일정 제목 입니다."><br>
+      </div>
+      <div id="calendar_startDate_container">
+        시작시간: <input type="date" id="calendar_startDate"> <input type="time" id="calendar_startTime"><br>
+      </div>
+      <div id="calendar_endDate_container">
+        종료시간: <input type="date" id="calendar_endDate"> <input type="time" id="calendar_endTime"><br>
+      </div>
+      <div id="calendar_multiple_container">
+        multiple:
+        <select id="calendar_multiple" name="calendar_multiple">
+         <option value="true" selected="true">true</option>
+         <option value="false">false</option>
+       </select><br>
+     </div>
+      <button type="button" onclick="calendar_function()" style="font-size: 15pt">Calendar request</button>
+    </td>
+  </tr>
+  <tr>
+    <td>Contact</td>
+    <td>Contact action 수행</td>
+    <td>
+      path
+      <select id="contact_path_type" name="target" onchange="contact_path_change()">
+        <option value="test" selected="true">--------</option>
+        <optgroup label="contact" value="contact">
+  				<option value="findcontact">findcontact</option>
+          <option value="addcontact">addcontact</option>
+          <option value="updatecontact">updatecontact</option>
+          <option value="deletecontact">deletecontact</option>
+        </optgroup>
+			</select>
+      <br><br>
+      <div id="contact_find_or_delete_container">
+        target:
+        <select id="contact_target" name="target" style="font-size: 15pt">
+  				<option value="name" selected="true">name</option>
+  				<option value="phone">phone</option>
+  				<option value="email">email</option>
+  			</select>
+        <br>
+        Max numbers:
+        <input id="contact_max_number" type="number" value=1 style="font-size: 15pt"></input>
+        <br>
+        condition:
+        <input id="contact_condition" type="text" value="Test123" style="font-size: 15pt"></input>
+        <br>
+      </div>
+      <div id="contact_add_or_update_container">
+        <div id="contact_id_container">
+        ID
+        <input id="contact_id" type="number" value=""></input><br></div>
+        Name:
+        <input id="contact_name" type="text" value="Test123" style="font-size: 15pt"></input>
+        <br>
+        Phone:
+        <input id="contact_phone" type="number" value="01012341234" style="font-size: 15pt"></input>
+        <br>
+        Email:
+        <input id="contact_email" type="text" value="test@test.com" style="font-size: 15pt"></input>
+        <br>
+        Address:
+        <input id="contact_address" type="text" value="Test Street..." style="font-size: 15pt"></input>
+        <br>
+        Category:
+        <input id="contact_category" type="text" value="Test" style="font-size: 15pt"></input>
+        <br><br>
+        <input id="contact_add_structured_name" type="checkbox">Add Structured Name</input>
+        <table style="width:100%; border:1px solid black;">
+          <tr>
+            <td style="width:50%;">
+              Family Name
+            </td>
+            <td style="width:50%;">
+              <input id="contact_family" type="text" value="Hong"></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              Given Name
+            </td>
+            <td style="width:50%;">
+              <input id="contact_given" type="text" value="Junpyo"></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              Middle Name
+            </td>
+            <td style="width:50%;">
+              <input id="contact_middle" type="text" value="ASB"></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              Prefix
+            </td>
+            <td style="width:50%;">
+              <input id="contact_prefix" type="text" value="Sir"></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              Suffix
+            </td>
+            <td style="width:50%;">
+              <input id="contact_suffix" type="text" value=""></input>
+            </td>
+          </tr>
+        </table>
+        <br>
+        <input id="contact_add_structured_address" type="checkbox">Add Structured Address</input>
+        <table style="width:100%; border:1px solid black;">
+          <tr>
+            <td style="width:50%;">
+              Type
+            </td>
+            <td style="width:50%;">
+              <input id="contact_type" type="text" value=""></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              Street
+            </td>
+            <td style="width:50%;">
+              <input id="contact_street" type="text" value="Gasanro"></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              Locality
+            </td>
+            <td style="width:50%;">
+              <input id="contact_locality" type="text" value="Pyoungchondongg"></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              Region
+            </td>
+            <td style="width:50%;">
+              <input id="contact_region" type="text" value="Anyangsi"></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              Postal Code
+            </td>
+            <td style="width:50%;">
+              <input id="contact_postal" type="text" value="123123"></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              Country
+            </td>
+            <td style="width:50%;">
+              <input id="contact_country" type="text" value="Korea, Republic of"></input>
+            </td>
+          </tr>
+        </table>
+        <br>
+      </div>
+      <button type="button" onclick="contact_function()" style="font-size: 15pt" >Contact request</button>
+    </td>
+  </tr>
+  <tr>
+    <td>Messaging</td>
+    <td>Messaging action 수행</td>
+    <td>
+      path
+      <select id="messaging_path_type" name="target" onchange="messaging_path_change()">
+        <option value="test" selected="true">--------</option>
+        <optgroup label="messaging" value="messaging">
+  				<option value="sendmessage">sendmessage</option>
+          <option value="findmessage">findmessage</option>
+          <option value="onmessagereceived">onmessagereceived</option>
+        </optgroup>
+			</select>
+      <br><br>
+      <div id="messaging_send_container">
+        Type
+        <select id="messaging_send_type" name="target">
+  				<option value="sms" selected="true">sms</option>
+  			</select>
+        <br>
+        To
+        <input id="messaging_send_to" type="number" value="01031907156"></input>
+        <br>
+        Body
+        <input id="messaging_send_body" type="text" value="DeviceAPI Message"></input>
+        <br>
+      </div>
+      <div id="messaging_find_container">
+        Find target
+        <select id="messaging_find_target" name="target">
+  				<option value="from" selected="true">from</option>
+  				<option value="body">body</option>
+  			</select>
+        <br>
+        Max find numbers
+        <input id="messaging_find_max_number" type="number" value="1"></input>
+        <br>
+        Find condition
+        <input id="messaging_find_condition" type="text" value="01031907156"></input>
+        <br>
+      </div>
+      <div id="messaging_onmessage_container">
+        <br>Interval
+        <input id="messaging_onmessage_interval" type="number" value="0"></input>
+      </div>
+      <br>
+      <button type="button" onclick="messaging_function()" style="font-size: 15pt">Messaging request</button>
+    </td>
+  </tr>
+  <tr>
+    <td>DeviceGallery</td>
+    <td>DeviceGallery action 수행</td>
+    <td>
+      path
+      <select id="gallery_path_type" name="target" onchange="gallery_path_change()">
+        <option value="test" selected="true">--------</option>
+        <optgroup label="devicegallery" value="devicegallery">
+  				<option value="findmedia">findmedia</option>
+          <option value="getmedia">getmedia</option>
+          <option value="deletemedia">deletemedia</option>
+        </optgroup>
+			</select>
+      <br><br>
+      <div id="gallery_find_container">
+        Type
+        <select id="gallery_find_type" name="type">
+  				<option value="and" selected="true">and</option>
+          <option value="or" selected="true">or</option>
+  			</select>
+        <br>
+        max item
+        <input id="gallery_find_maxItem" type="number" value="5"></input>
+        <br>
+        <table style="width:100%; border:1px solid black;">
+          <tr>
+            <td style="width:50%;">
+              type
+            </td>
+            <td style="width:50%;">
+              <input id="gallery_find_option_type" type="text" value=""></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              description
+            </td>
+            <td style="width:50%;">
+              <input id="gallery_find_option_description" type="text" value=""></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              id
+            </td>
+            <td style="width:50%;">
+              <input id="gallery_find_option_id" type="text" value=""></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              title
+            </td>
+            <td style="width:50%;">
+              <input id="gallery_find_option_title" type="text" value="Screen"></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              fileName
+            </td>
+            <td style="width:50%;">
+              <input id="gallery_find_option_filename" type="text" value=""></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              fileSize
+            </td>
+            <td style="width:50%;">
+              <input id="gallery_find_option_filesize" type="number" value=""></input>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:50%;">
+              createdDate
+            </td>
+            <td style="width:50%;">
+              <input id="gallery_find_option_createdDate" type="date"></input>
+            </td>
+          </tr>
+        </table>
+        <br>
+      </div>
+      <div id="gallery_obj_id_container">
+        id
+        <input id="gallery_obj_id" type="text"></input>
+        <br>
+      </div>
+      <br>
+      <button type="button" onclick="devicegallery_function()" style="font-size: 15pt">DeviceGallery request</button>
+      <br><br>
+      <canvas id="gallery_canvas" width="400" height="360">
+      	이 브라우저는 캔버스를 지원하지 않습니다.
+      </canvas>
+    </td>
+  </tr>
+  <tr>
+    <td>DeviceSensor</td>
+    <td>Sensor-Proximity</td>
+    <td>
+      path
+      <select id="devicesensor_path_type" name="target">
+        <option value="test" selected="true">--------</option>
+        <optgroup label="sensor" value="sensor">
+  				<option value="ondeviceproximity">ondeviceproximity
+        </optgroup>
+			</select><br>
+      Interval: <input type="number" id="devicesensor_filter_interval" value=0><br>
+      Range : <input type="number" id="devicesensor_filter_min_value" value=0><input type="number" id="devicesensor_filter_max_value" value=0><br>
+      Min Change Value : <input type="number" id="devicesensor_filter_min_change_value" value="0"><br>
+      <br>
+      <button type="button" onclick="devicesensor_function()" style="font-size: 15pt">Sensor request</button>
+    </td>
+  </tr>
+</table>
+<script src="console-log-div.js"></script>
+
+</body>
+</html>

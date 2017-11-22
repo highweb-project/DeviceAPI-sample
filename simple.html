@@ -1,0 +1,443 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=0.7, maximum-scale=3.0, minimum-scale=0, user-scalable=no, target-densitydpi=medium-dpi" />
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript" src="./discovery.js"></script>
+
+<script type="text/javascript">
+
+var connected = false;
+var socket;
+var authorizeId;
+
+var serverList = new Array();
+
+var myIpAddrs = null;
+function setServerUrl(item, ipAddrs) {
+  console.log(myIpAddrs + " , " + ipAddrs);
+  if (ipAddrs != null) myIpAddrs = ipAddrs;
+  var serverListSelect = document.getElementById("serverListSelect");
+  if (serverList.length == 0 && serverListSelect.options.length > 0 && serverListSelect.options[0].id == 'empty') {
+    serverListSelect.remove(0);
+    serverListSelect.disabled=false;
+    var btn_connect_server = document.getElementById("btn_connect_server");
+    btn_connect_server.disabled=false;
+  }
+  if (serverList.indexOf(item) < 0) {
+    serverList.push(item);
+    var opt = document.createElement('option');
+    opt.value = item;
+    if (item == myIpAddrs) {
+      opt.innerHTML = "Local";
+    } else {
+      opt.innerHTML = item;  
+    }
+    if (serverListSelect.options.length == 0) {
+      opt.selected = "selected";
+    }
+    serverListSelect.appendChild(opt);
+  }
+}
+
+function makeAuthorize() {
+  var text = "";
+  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+  for (var i = 0; i < 5; i++)
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+  return text + Date.now();
+}
+  
+function connectServer() {
+  if (!connected) {
+    var url = document.getElementById("serverListSelect").value;
+    console.log("server url : " + url);
+    document.getElementById("btn_connect_server").textContent = "Connecting...";
+    document.getElementById("btn_connect_server").disabled = true;
+    socket = new WebSocket(url);
+    socket.onopen = function(event) {
+      console.log("connected");
+      connected = true;
+      socket.onmessage = handleMessage;
+      authorizeId = makeAuthorize();
+      send_authorize();
+    }
+    socket.onclose = function(event) {
+      console.log("onClose " + event.code);
+      closedSocket();
+      socket.onmessage = function(event) {
+        console.log("onmessage : " + event.data);
+      }
+    }
+  } else {
+    socket.close();
+  }
+}
+  
+function connectedSocket() {
+  document.getElementById("btn_connect_server").textContent = "Disconnect";
+  document.getElementById("btn_connect_server").disabled = false;
+  var serverListSelected = document.getElementById("serverListSelect");
+  serverListSelected.disabled=true;
+  var btn_unsubscribe = document.getElementById("btn_unsubscribe");
+  btn_unsubscribe.disabled=false;
+  var btn_getAppList = document.getElementById("btn_getAppList");
+  btn_getAppList.disabled=false;
+  var btn_cpu_load = document.getElementById("btn_cpu_load");
+  btn_cpu_load.disabled=false;
+}
+  
+function closedSocket() {
+  document.getElementById("btn_connect_server").textContent = "Connect";
+  document.getElementById("btn_connect_server").disabled = false;
+  authorizeId = null;
+  connected = false;
+  cpuSubscribeList = new Array();
+  clearChart();
+  var result_area = document.getElementById("applauncher_result_tr_list");
+  result_area.style="display:none";
+  var serverListSelected = document.getElementById("serverListSelect");
+  serverListSelected.disabled=false;
+  var btn_unsubscribe = document.getElementById("btn_unsubscribe");
+  btn_unsubscribe.disabled=true;
+  var btn_getAppList = document.getElementById("btn_getAppList");
+  btn_getAppList.disabled=true;
+  var btn_cpu_load = document.getElementById("btn_cpu_load");
+  btn_cpu_load.disabled=true;
+}
+
+function send_authorize() {
+  if (connected) {
+    var msg = {
+      action: "authorize",
+      requestId: authorizeId
+    };
+    console.log("send authorize msg : " + JSON.stringify(msg));
+
+    // Send the msg object as a JSON-formatted string.
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function send_unsubscribe() {
+  if (connected) {
+    var msg;
+    msg = {
+      action: "unsubscribeAll",
+      requestId: authorizeId,
+      path: "unsubscribeAll",
+    };
+    console.log("send get msg: " + JSON.stringify(msg));
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function applauncher_function(path, appId) {
+  if (connected) {
+    console.log("path : " + path + ", " + appId);
+    var msg;
+    var extra = document.getElementById("applauncher_extra");
+    if (path == "getapplist") {
+      msg = {
+        action: "get",
+        requestId: authorizeId,
+        path: "highweb.applauncher." + path
+      };
+    } else if(path == "getapplicationinfo") {
+      console.log("extra value not empty");
+      var extraValue = {
+        appId: appId
+      };
+      msg = {
+        action: "get",
+        requestId: authorizeId,
+        path: "highweb.applauncher." + path,
+        extra: extraValue
+      };
+    } else {
+      var extraValue = {
+        appId: appId
+      };
+      msg = {
+        action: "set",
+        requestId: authorizeId,
+        path: "highweb.applauncher." + path,
+        extra: extraValue
+      };
+    }
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function createAppResultIcon(appList) {
+  var result_area = document.getElementById("applauncher_result_tr_list");
+  result_area.style="";
+  if (appList) {
+    var htmlString = "";
+    for(var i in appList) {
+      htmlString += "<div style='width:300px;display:flex;flex-direction:column;align-items:center'><img height='180px' width='180px' src='" +
+                    appList[i].iconUrl + "' onclick=\"applauncher_function('launchapp', '" + appList[i].id + "')\"></a>" + 
+                    "<div style='text-align:center'><h4>" + appList[i].name + "</h4></div></div>";
+    }
+    var result_area = document.getElementById("applauncher_result_area_list");
+    result_area.innerHTML = htmlString;
+  } else {
+    var result_area = document.getElementById("applauncher_result_area_list");
+    result_area.innerHTML = "Server에 설치된 앱이 없습니다";
+    console.log("Server에 설치된 앱이 없습니다");
+  }
+}
+
+function devicecpu_function() {
+  if (connected) {
+    lastCpuLoadDrawChartTime = getCurrentTimeMillis();
+    load_chart();
+    var msg;
+    var msg = {
+      action: "subscribe",
+      requestId: authorizeId,
+      path: "highweb.systeminfo.devicecpu.load",
+    };
+    console.log("send get msg: " + JSON.stringify(msg));
+
+    socket.send(JSON.stringify(msg));
+  }
+}
+
+function handleMessage(event) {
+  var result = JSON.parse(event.data);
+  switch(result.action) {
+    case "unsubscribeAll": {
+      console.log("unsubscribeAll");
+      cpuSubscribeList = new Array();
+      clearChart();
+      break;
+    }
+    case "authorize": {
+      console.log("authorize");
+      if (result.error != undefined) {
+        console.log("authorize error : " + result.error.number + " : " + result.error.message);
+      } else {
+        connectedSocket();
+      }
+      break;
+    }
+    default: {
+      switch(result.path) {
+        case "highweb.applauncher.getapplist" : {
+          if (result.error == undefined && result.value.resultCode == 0) {
+            createAppResultIcon(result.value.appList);
+            return;
+          } else {
+            createAppResultIcon(null);
+          }
+          break;
+        }
+        case "highweb.systeminfo.devicecpu.load" : {
+          if (result.error == undefined && result.value.resultCode == 0) {
+            if (!cpuSubscribeList.find(function(subscriptionId) {
+              return subscriptionId == result.subscriptionId}
+              )) {
+              cpuSubscribeList.push(result.subscriptionId);
+              var devicecpu_result_tr = document.getElementById("devicecpu_result_tr");
+              devicecpu_result_tr.style.display = "";
+              console.log("add " + result.subscriptionId + ", length : " + cpuSubscribeList.length);
+            }
+            load(result.value);
+            return;
+          } else {
+            if (cpuSubscribeList.length == 0) {
+              clearChart();
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+  console.log("receive data : " + event.data);
+}
+
+function load_chart() {
+  google.charts.load('current', {'packages':['corechart', 'gauge']});
+  google.charts.setOnLoadCallback(load);
+  console.log("load_chart, wait onLoadCallback...");
+}
+
+function getCurrentTimeMillis() {
+  var date = new Date();
+  var milliseconds = date.getTime();
+
+  return milliseconds;
+}
+
+var cpuSubscribeList = new Array();
+var graphChartData =  [ ['Time', 'CPU Usage'] ];
+var lastCPUUsageData;
+var graphChart = null;
+var gaugeChart = null;
+var lastCpuLoadDrawChartTime;
+
+function drawChart() {
+  // graph chart
+  {
+    var data = google.visualization.arrayToDataTable(graphChartData);
+    var options = {
+      title: 'CPU Usage',
+      curveType: 'function',
+      legend: { position: 'bottom' },
+      vAxis: { 
+        ticks: [0,20,40,60,80,100]
+      },
+      width: 500
+    };
+
+    if(graphChart == null) {
+        graphChart = new google.visualization.LineChart(document.getElementById('curve_chart'));
+    }
+
+    // graphChart.clearChart();
+    graphChart.draw(data, options);
+  }
+  // gauge chart
+  {
+    var data = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['CPU', lastCPUUsageData],
+        ]);
+    var options = {
+        width: 500, height: 500,
+        redFrom: 90, redTo: 100,
+        yellowFrom:75, yellowTo: 90,
+        minorTicks: 5
+      };
+
+    if(gaugeChart == null) {
+      gaugeChart = new google.visualization.Gauge(document.getElementById('chart_div'));
+    }
+
+    //gaugeChart.clearChart();
+    gaugeChart.draw(data, options);
+  }
+}
+
+function load(event) {
+  if (event.load == null || event.load < 0) {
+    return;
+  }
+  var willDrawChart = false;
+  var deltaDrawChart = getCurrentTimeMillis() - lastCpuLoadDrawChartTime;
+  if(deltaDrawChart > 1000) {
+    willDrawChart = true;
+    lastCpuLoadDrawChartTime = getCurrentTimeMillis();
+    var now = new Date();
+    graphChartData.push([ now.getHours().toString() + now.getMinutes().toString() + now.getSeconds().toString(), event.load * 100 ]);
+  }
+
+  if(graphChartData.length > 6) {
+    var indexToRemove = 1;
+    var numberToRemove = 1;
+
+    graphChartData.splice(indexToRemove, numberToRemove);
+  }
+
+  lastCPUUsageData = Math.round(event.load * 100);
+
+  if(willDrawChart) {
+    setTimeout( drawChart(), 0 );
+  }
+}
+
+function clearChart() {
+  console.log("clearChart");
+  if (gaugeChart && graphChart) {
+    gaugeChart.clearChart();
+    graphChart.clearChart();
+    lastCPUUsageData = 0;
+    gaugeChart = null;
+    graphChart = null;
+    graphChartData = [ ['Time', 'CPU Usage'] ];
+    var devicecpu_result_tr = document.getElementById("devicecpu_result_tr");
+    devicecpu_result_tr.style = "display:none";
+  }
+}
+
+</script>
+<style>
+table {
+    width:100%;
+}
+table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 15px;
+    text-align: left;
+}
+table#t01 tr:nth-child(even) {
+    background-color: #eee;
+}
+table#t01 tr:nth-child(odd) {
+   background-color:#fff;
+}
+table#t01 th	{
+    background-color: black;
+    color: white;
+}
+</style>
+</head>
+<body onload="findDiscovery(setServerUrl)">
+<h1 style="font-family: verdana; text-align: center">Web DeviceAPI</h1>
+<table id="t01">
+  <tr>
+  </tr>
+  <tr>
+    <td>
+      <!-- <input id="server_ip" type="text" value="192.168.70.5:20000"></input> -->
+      <select id="serverListSelect" style="font-size: 25pt" size=5 disabled=true>
+        <option value="null" name="empty" id="empty" selected="selected">Empty ServerList</option>
+      </select>
+      <p></p>
+      <button id="btn_connect_server" type="button" style="font-size: 35pt" onclick="connectServer();" disabled=true>Connect</button>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <button id="btn_unsubscribe" type="button" style="font-size: 30pt" onclick="send_unsubscribe();" disabled=true>Unsubscribe All</button>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <button id="btn_getAppList" type="button" onclick="applauncher_function('getapplist')" style="font-size: 30pt" disabled=true>Get Server PWA List</button>
+    </td>
+  </tr>
+  <tr id="applauncher_result_tr_list" style="display:none">
+    <td>
+      <div id="applauncher_result_area_list" style="display:flex;flex-direction:row;flex-wrap:wrap;">
+        Get Server PWA List Result
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <button id="btn_cpu_load" type="button" onclick="devicecpu_function()" style="font-size: 30pt" disabled=true>Get CPU Load Info</button>
+    </td>
+  </tr>
+  <tr id="devicecpu_result_tr" style="display:none">
+    <td>
+      <div id="curve_chart" style="margin:0 auto; width: 500px"></div>
+      <p><br></p>
+      <div id="chart_div" style="margin:0 auto; width:500px"></div>
+    </td>
+  </tr>
+</table>
+<!--<script src="console-log-div.js"></script>-->
+</body>
+</html>
