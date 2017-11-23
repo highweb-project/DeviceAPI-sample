@@ -14,8 +14,8 @@ var socket;
 var serverList = new Array();
 
 var myIpAddrs;
-function setServerUrl(item, ipAddrs) {
-  console.log("item " + item + ", " + ipAddrs);
+function setServerUrl(item, ipAddrs, modelName) {
+  console.log("item " + item + ", " + ipAddrs + ", " + modelName);
   if (ipAddrs != null) myIpAddrs = ipAddrs;
   if (serverList.indexOf(item) < 0) {
     serverList.push(item);
@@ -23,9 +23,9 @@ function setServerUrl(item, ipAddrs) {
     var opt = document.createElement('option');
     opt.value = item;
     if (item == myIpAddrs) {
-      opt.innerHTML = "Local";
+      opt.innerHTML = modelName + "(Local)";
     } else {
-      opt.innerHTML = item;  
+      opt.innerHTML = modelName + "(" + item + ")";  
     }
     serverListSelect.appendChild(opt);
   }

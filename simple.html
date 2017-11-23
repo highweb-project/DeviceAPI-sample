@@ -16,8 +16,8 @@ var authorizeId;
 var serverList = new Array();
 
 var myIpAddrs = null;
-function setServerUrl(item, ipAddrs) {
-  console.log(myIpAddrs + " , " + ipAddrs);
+function setServerUrl(item, ipAddrs, modelName) {
+  console.log(myIpAddrs + " , " + ipAddrs + ", " + modelName);
   if (ipAddrs != null) myIpAddrs = ipAddrs;
   var serverListSelect = document.getElementById("serverListSelect");
   if (serverList.length == 0 && serverListSelect.options.length > 0 && serverListSelect.options[0].id == 'empty') {
@@ -31,9 +31,9 @@ function setServerUrl(item, ipAddrs) {
     var opt = document.createElement('option');
     opt.value = item;
     if (item == myIpAddrs) {
-      opt.innerHTML = "Local";
+      opt.innerHTML = modelName + "(Local)";
     } else {
-      opt.innerHTML = item;  
+      opt.innerHTML = modelName + "(" + item + ")";  
     }
     if (serverListSelect.options.length == 0) {
       opt.selected = "selected";

@@ -14,11 +14,26 @@ function findServer(displayAddrs, myIpAddrs, callback)
     try {
       
       soc.onopen = function(evt) {
-        callback(ip, "ws://" + myIpAddrs + ":20000");
+        var msg = {
+          action: "requestmodelname",
+          
+        };
+        console.log("msg : " + JSON.stringify(msg));
+        soc.send(JSON.stringify(msg));
       };
       soc.onclose = function(evt) {
       };
       soc.onmessage = function(evt) {
+        console.log("discovery.js onmessage " + ip + evt.data);
+        var result = JSON.parse(evt.data);
+        if (result.action == "requestmodelname") {
+          console.log("modelname " + result.modelname);
+          var modelName = result.modelname;
+          if (!result.modelname) {
+            modelName = "Unknown";
+          }
+          callback(ip, "ws://" + myIpAddrs + ":20000", modelName);
+        }
       };
       soc.onerror = function(evt) {
         ++checkedCnt;
