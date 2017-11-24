@@ -30,7 +30,12 @@ function getAppList() {
       console.log("========== Application #" + i + " ========== ");
       console.log("name : " + ApplicationInfo[i].name + ", id : " + ApplicationInfo[i].id);
       console.log("url : " + ApplicationInfo[i].url + ", version : " + ApplicationInfo[i].version);
-      console.log("iconUrl : " + ApplicationInfo[i].iconUrl);
+
+      if(ApplicationInfo[i].iconUrl && ApplicationInfo[i].iconUrl.length > 50) {
+        console.log("iconUrl : " + ApplicationInfo[i].iconUrl.substr(0, 50) + "...");
+      } else {
+        console.log("iconUrl : " + ApplicationInfo[i].iconUrl);
+      }
     }
   }
 
@@ -62,8 +67,13 @@ function getApplicationInfo() {
 		var ApplicationInfo = event.appInfo;
     console.log("name : " + ApplicationInfo.name + ", id : " + ApplicationInfo.id);
     console.log("url : " + ApplicationInfo.url + ", version : " + ApplicationInfo.version);
-    console.log("iconUrl : " + ApplicationInfo.iconUrl);
-	}
+
+    if(ApplicationInfo.iconUrl && ApplicationInfo.iconUrl.length > 50) {
+      console.log("iconUrl : " + ApplicationInfo.iconUrl.substr(0, 50) + "...");
+    } else {
+      console.log("iconUrl : " + ApplicationInfo.iconUrl);
+    }
+}
 	AppLauncher.getApplicationInfo(document.getElementById("getApplicationInfo_AppId").value, callback);
 }
 </script>
