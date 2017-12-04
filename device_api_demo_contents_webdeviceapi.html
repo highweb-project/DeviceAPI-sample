@@ -117,7 +117,6 @@ function send_unsubscribe() {
       msg = {
         action: "unsubscribeAll",
         requestId: document.getElementById("requestId").value,
-        path: path,
       };
     }
     console.log("send get msg: " + JSON.stringify(msg));
@@ -824,8 +823,8 @@ function handleMessage(event) {
           }
           getmediaResult = result;
           var image = new Image();
-          image.src="data:" + getmediaResult.value.storageList[0].type +
-                    ";base64,"+getmediaResult.value.storageList[0].content.blob;
+          image.src="data:" + getmediaResult.value.mediaList[0].type +
+                    ";base64,"+getmediaResult.value.mediaList[0].content.blob;
           image.onload = function () {
             var canvas = document.getElementById("gallery_canvas");
             var ctx = canvas.getContext("2d");
@@ -881,7 +880,7 @@ var galleryList = new Map();
 function saveGalleryList(value) {
   var result = JSON.parse(value);
   var listString = result.value;
-  listString.storageList.forEach(function(object) {
+  listString.mediaList.forEach(function(object) {
     galleryList.set(object.id, object);
   });
 }
