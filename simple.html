@@ -285,6 +285,11 @@ var gaugeChart = null;
 var lastCpuLoadDrawChartTime;
 
 function drawChart() {
+  // console.log("google.visualization.arrayToDataTable : " + typeof google.visualization.arrayToDataTable);
+  if(typeof google.visualization.arrayToDataTable != "function") {
+    return;
+  }
+
   // graph chart
   {
     var data = google.visualization.arrayToDataTable(graphChartData);
@@ -328,6 +333,11 @@ function drawChart() {
 }
 
 function load(event) {
+  // console.log("event : " + typeof event);
+  if(typeof event != "object") {
+    return;
+  }
+
   if (event.load == null || event.load < 0) {
     return;
   }
